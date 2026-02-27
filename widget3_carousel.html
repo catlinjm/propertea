@@ -163,7 +163,7 @@ function render(listings){
 
 // "View all" button
 document.getElementById('viewAllBtn').addEventListener('click',function(){
-  try{window.parent.postMessage({type:'propertea-viewall'},'*');}catch(e){}
+  window.parent.location.href = '/map';
 });
 
 showSkels();
