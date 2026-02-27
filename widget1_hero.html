@@ -151,13 +151,10 @@ function doSearch(){
   var v=inp.value.trim();
   if(!v)return;
   sugg.classList.remove('show');
-  // Post message to Wix parent page — Wix Corvid can listen to this
-  // and navigate to the map page or scroll to the map widget
-  try{
-    window.parent.postMessage({type:'propertea-search',city:v},'*');
-  }catch(e){}
-  // Also store in sessionStorage so map widget can read it on same page
+  // Store city so map widget picks it up on arrival
   try{sessionStorage.setItem('propertea_city',v);}catch(e){}
+  // Navigate to map page
+  window.parent.location.href = 'https://www.propertea.me/map?city=' + encodeURIComponent(v);
 }
 </script>
 </body>
