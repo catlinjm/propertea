@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProperTea — Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --lime:#8dc63f;--lime-dark:#6aab28;--forest:#2d4a1e;--forest-mid:#3d6628;--forest-light:#5a8f3c;
+  --paper:#f4f7ee;--cream:#e6edda;--ink:#1e3012;--slate:#4a5e3a;--white:#fbfdf8;--brass:#a8893a;
+  --shadow:0 4px 24px rgba(30,48,18,0.14);--shadow-lg:0 12px 48px rgba(30,48,18,0.2);
+}
+/* Wix iframe map: fill the iframe fully, fixed layout */
+html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--forest);display:flex;flex-direction:column}
+
+/* ── TOOLBAR ── */
+.toolbar{
+  height:52px;background:var(--forest);flex-shrink:0;
+  display:flex;align-items:center;gap:0;
+  border-bottom:2px solid rgba(141,198,63,0.2);
+  /* Wix: high z-index on toolbar so nothing overlaps the buttons */
+  position:relative;z-index:1000;
+}
+.toolbar-search{display:flex;align-items:center;flex:1;padding:0 14px;gap:0;min-width:0}
+.tb-search-inner{position:relative;flex:1;display:flex;align-items:center;min-width:0}
+.tb-icon{color:rgba(245,253,248,0.4);font-size:0.9rem;margin-right:8px;flex-shrink:0}
+.tb-input{
+  flex:1;background:transparent;border:none;outline:none;
+  font-family:'DM Sans',sans-serif;font-size:0.85rem;color:var(--white);
+  padding:6px 0;min-width:0;
+}
+.tb-input::placeholder{color:rgba(245,253,248,0.28)}
+.tb-btn{
+  padding:6px 15px;background:var(--lime);color:var(--forest);
+  border:none;border-radius:18px;font-family:'DM Sans',sans-serif;
+  font-size:0.74rem;font-weight:700;cursor:pointer;
+  transition:all 0.2s;white-space:nowrap;margin-left:10px;flex-shrink:0;
+  /* Wix button fixes — explicit everything */
+  position:relative;z-index:1001;pointer-events:auto;
+  display:block;appearance:none;-webkit-appearance:none;
+}
+.tb-btn:hover{background:var(--lime-dark);color:var(--white)}
+.tb-btn:active{transform:scale(0.96)}
+
+.tb-sugg{
+  position:absolute;top:calc(100% + 8px);left:-10px;width:300px;
+  background:var(--white);border-radius:10px;box-shadow:var(--shadow-lg);
+  overflow:hidden;display:none;
+  /* must be above map tiles */
+  z-index:2000;border:1px solid var(--cream);
+}
+.tb-sugg.show{display:block}
+.sugg-item{padding:9px 14px;font-size:0.82rem;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.15s;pointer-events:auto}
+.sugg-item:hover{background:var(--paper)}
+.sugg-item small{color:var(--slate);font-size:0.7rem;margin-left:auto}
+
+.tb-divider{width:1px;height:32px;background:rgba(141,198,63,0.15);flex-shrink:0}
+
+.filter-wrap{display:flex;align-items:center;gap:5px;padding:0 12px}
+.fpill{
+  padding:5px 11px;border-radius:16px;border:1px solid rgba(141,198,63,0.25);
+  background:transparent;color:rgba(245,253,248,0.5);
+  font-family:'DM Sans',sans-serif;font-size:0.7rem;font-weight:500;
+  cursor:pointer;transition:all 0.2s;white-space:nowrap;
+  /* Wix fixes */
+  position:relative;z-index:1001;pointer-events:auto;
+  display:block;appearance:none;-webkit-appearance:none;
+}
+.fpill.active,.fpill:hover{background:var(--lime);border-color:var(--lime);color:var(--forest);font-weight:700}
+.fpill:active{transform:scale(0.95)}
+
+.tb-count{font-size:0.67rem;color:rgba(245,253,248,0.3);padding:0 12px;white-space:nowrap;margin-left:auto}
+
+/* ── BODY ── */
+.body-wrap{display:flex;flex:1;min-height:0;overflow:hidden;position:relative}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:280px;min-width:280px;background:var(--paper);
+  display:flex;flex-direction:column;
+  border-right:1px solid var(--cream);overflow:hidden;
+  /* Wix: z-index above map but below panel */
+  z-index:200;position:relative;
+}
+/* Hide sidebar on very small screens — map takes full width */
+@media(max-width:600px){.sidebar{display:none}}
+.sb-head{padding:12px 14px 10px;background:var(--white);border-bottom:1px solid var(--cream);flex-shrink:0}
+.sb-head h3{font-family:'Playfair Display',serif;font-size:0.9rem;font-weight:600;color:var(--ink);margin-bottom:1px}
+.sb-head p{font-size:0.68rem;color:var(--slate)}
+.sb-list{flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch}
+.sb-list::-webkit-scrollbar{width:3px}
+.sb-list::-webkit-scrollbar-thumb{background:var(--forest-light);border-radius:2px}
+
+.scard{background:var(--white);border-radius:9px;margin-bottom:7px;cursor:pointer;border:2px solid transparent;transition:all 0.18s;overflow:hidden;box-shadow:0 1px 5px rgba(30,48,18,0.06);pointer-events:auto}
+.scard:hover{border-color:var(--forest-light);transform:translateY(-1px);box-shadow:var(--shadow)}
+.scard.active{border-color:var(--lime)}
+.scard.hidden{display:none}
+.scard-img{height:80px;position:relative;overflow:hidden;background:var(--cream)}
+.scard-img img{width:100%;height:100%;object-fit:cover;display:block}
+.scard-img .no-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;opacity:0.22}
+.s-badge{position:absolute;top:6px;left:6px;padding:2px 6px;border-radius:6px;font-size:0.56rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase}
+.s-badge.res{background:var(--forest);color:var(--white)}
+.s-badge.com{background:var(--brass);color:var(--white)}
+.s-status{position:absolute;top:6px;right:6px;padding:2px 6px;border-radius:6px;font-size:0.56rem;font-weight:700;background:rgba(251,253,248,0.94)}
+.st-active{color:#2d5e1a}.st-pending{color:#8a6010}.st-closed{color:#8a2020}
+.scard-body{padding:8px 10px}
+.sc-price{font-family:'Playfair Display',serif;font-size:0.9rem;font-weight:700;color:var(--ink);margin-bottom:1px}
+.sc-addr{font-size:0.65rem;color:var(--slate);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-meta{display:flex;gap:7px;font-size:0.62rem;color:var(--slate)}
+.sc-cmts{display:inline-flex;align-items:center;gap:2px;font-size:0.6rem;color:var(--forest-mid);font-weight:600;margin-top:4px;background:#e8f4d8;padding:2px 6px;border-radius:6px;border:1px solid #b8d4a0}
+
+.sb-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:160px;gap:8px;color:var(--slate)}
+.spinner{width:22px;height:22px;border:3px solid var(--cream);border-top-color:var(--lime);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sb-loading p{font-size:0.72rem}
+.sb-err{padding:16px;text-align:center;color:var(--slate);font-size:0.73rem}
+.retry-btn{margin-top:8px;padding:6px 12px;background:var(--forest);color:var(--white);border:none;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:0.7rem;font-weight:600;cursor:pointer;pointer-events:auto}
+.retry-btn:hover{background:var(--lime);color:var(--forest)}
+
+/* ── MAP ── */
+.map-wrap{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+
+/* Toast */
+.toast{
+  position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+  z-index:800;background:rgba(30,48,18,0.92);backdrop-filter:blur(8px);
+  color:var(--white);border-radius:22px;padding:9px 18px;
+  font-size:0.75rem;display:none;align-items:center;gap:7px;
+  max-width:88%;text-align:center;line-height:1.4;
+  box-shadow:0 4px 20px rgba(0,0,0,0.25);white-space:normal;
+  pointer-events:none;
+}
+.toast.show{display:flex}
+.mini-spin{width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:var(--lime);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0}
+
+/* Legend */
+.legend{
+  position:absolute;bottom:20px;right:14px;z-index:500;
+  background:rgba(251,253,248,0.96);border-radius:9px;padding:9px 13px;
+  font-size:0.68rem;color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--cream);
+  pointer-events:none;
+}
+.leg-row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.leg-row:last-child{margin-bottom:0}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ── DETAIL PANEL ── */
+.panel{
+  position:absolute;right:0;top:0;bottom:0;
+  /* Narrower on mobile */
+  width:min(360px,100%);
+  background:var(--white);
+  box-shadow:-6px 0 32px rgba(30,48,18,0.2);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  /* Above map tiles, below nothing */
+  z-index:600;overflow:hidden;
+}
+.panel.open{transform:translateX(0)}
+.panel-close{
+  position:absolute;top:10px;right:10px;
+  width:28px;height:28px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.4);background:rgba(30,48,18,0.6);
+  color:var(--white);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:0.82rem;
+  transition:all 0.2s;z-index:2;
+  /* Wix: explicit clickability */
+  pointer-events:auto;position:absolute;
+}
+.panel-close:hover{background:var(--forest)}
+.p-img{height:175px;flex-shrink:0;position:relative;overflow:hidden;background:var(--cream)}
+.p-img img{width:100%;height:100%;object-fit:cover;display:block}
+.p-img .no-img-lg{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;opacity:0.22}
+.p-overlay{position:absolute;bottom:0;left:0;right:0;padding:12px 15px;background:linear-gradient(transparent,rgba(20,40,12,0.78))}
+.p-price{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--white)}
+.p-body{flex:1;overflow-y:auto;padding:14px 16px 22px;-webkit-overflow-scrolling:touch}
+.p-body::-webkit-scrollbar{width:3px}
+.p-body::-webkit-scrollbar-thumb{background:var(--forest-light);border-radius:2px}
+.p-title{font-family:'Playfair Display',serif;font-size:0.97rem;font-weight:600;margin-bottom:2px;color:var(--ink)}
+.p-addr{font-size:0.71rem;color:var(--slate);margin-bottom:11px}
+.p-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:11px}
+.ptag{padding:3px 8px;border-radius:8px;font-size:0.62rem;font-weight:500;background:var(--cream);color:var(--slate)}
+.ptag.res{background:#e0f0cc;color:#1e4010;border:1px solid #a8cc80}
+.ptag.com{background:#f5eed8;color:#5a4010;border:1px solid #d4bc7a}
+.ptag.active{background:#e0f0cc;color:#1e4010;border:1px solid #a8cc80}
+.ptag.pending{background:#f5eed8;color:#7a5010;border:1px solid #d4bc7a}
+.mls-row{display:inline-flex;align-items:center;gap:4px;font-size:0.61rem;color:var(--slate);background:var(--paper);border:1px solid var(--cream);border-radius:5px;padding:2px 7px;margin-bottom:11px}
+.mls-row strong{color:var(--forest-mid)}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px}
+.deet{background:var(--paper);border-radius:6px;padding:7px 9px;border:1px solid var(--cream)}
+.deet label{font-size:0.58rem;color:var(--slate);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:2px}
+.deet span{font-size:0.8rem;font-weight:600;color:var(--ink)}
+.p-desc{font-size:0.73rem;color:var(--slate);line-height:1.58;margin-bottom:14px}
+
+/* Comments */
+.cmts{border-top:1px solid var(--cream);padding-top:14px}
+.cmts-title{font-family:'Playfair Display',serif;font-size:0.88rem;font-weight:600;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.cmt-cnt{background:var(--lime);color:var(--forest);width:17px;height:17px;border-radius:50%;font-family:'DM Sans',sans-serif;font-size:0.61rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.cf{margin-bottom:12px}
+.ci,.ca{width:100%;border:1px solid var(--cream);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.74rem;color:var(--ink);background:var(--paper);transition:border-color 0.2s;display:block}
+.ci{padding:7px 9px;margin-bottom:4px}
+.ca{padding:7px 9px;resize:vertical;min-height:54px;margin-bottom:6px}
+.ci:focus,.ca:focus{outline:none;border-color:var(--lime)}
+.cs{
+  padding:7px 14px;background:var(--forest);color:var(--white);
+  border:none;border-radius:7px;font-family:'DM Sans',sans-serif;
+  font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.2s;
+  pointer-events:auto;position:relative;z-index:2;
+  display:block;appearance:none;-webkit-appearance:none;
+}
+.cs:hover{background:var(--lime);color:var(--forest)}
+.cs:active{transform:scale(0.97)}
+.cl{display:flex;flex-direction:column;gap:6px}
+.ci-item{background:var(--paper);border-radius:7px;padding:8px 10px;animation:fadeUp 0.22s ease;border:1px solid var(--cream)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.ci-head{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.ci-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:var(--white);flex-shrink:0}
+.ci-name{font-size:0.7rem;font-weight:600;color:var(--ink)}
+.ci-time{font-size:0.59rem;color:var(--slate);margin-left:auto}
+.ci-text{font-size:0.7rem;color:var(--slate);line-height:1.48}
+.ci-del{background:none;border:none;cursor:pointer;color:var(--slate);font-size:0.63rem;opacity:0.32;transition:opacity 0.2s;padding:2px;pointer-events:auto}
+.ci-del:hover{opacity:1;color:#8a2020}
+.no-cmts{text-align:center;padding:12px;color:var(--slate);font-size:0.7rem;background:var(--paper);border-radius:7px;border:1px dashed var(--cream)}
+
+/* Leaflet popup */
+.leaflet-popup-content-wrapper{border-radius:9px;box-shadow:0 8px 24px rgba(30,48,18,0.18);padding:0;overflow:hidden}
+.leaflet-popup-content{margin:0}
+.pop{padding:10px 13px;min-width:160px}
+.pop strong{font-family:'Playfair Display',serif;font-size:0.88rem;display:block;margin-bottom:2px;color:#1e3012}
+.pop small{color:#4a5e3a;font-size:0.66rem}
+.pop-btn{
+  display:block;width:100%;margin-top:8px;padding:7px;
+  background:#2d4a1e;color:#fbfdf8;border:none;border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:0.68rem;font-weight:600;
+  cursor:pointer;transition:background 0.2s;text-align:center;
+  pointer-events:auto;position:relative;z-index:2;
+  appearance:none;-webkit-appearance:none;
+}
+.pop-btn:hover{background:#8dc63f;color:#2d4a1e}
+.pop-btn:active{transform:scale(0.97)}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-search">
+    <div class="tb-search-inner">
+      <span class="tb-icon">🔍</span>
+      <input class="tb-input" id="cityInput" type="text" placeholder="Search city, e.g. Houston TX…" autocomplete="off">
+      <div class="tb-sugg" id="tbSugg"></div>
+    </div>
+    <button class="tb-btn" id="searchBtn">Search</button>
+  </div>
+  <div class="tb-divider"></div>
+  <div class="filter-wrap">
+    <button class="fpill active" data-filter="all">All</button>
+    <button class="fpill" data-filter="residential">Residential</button>
+    <button class="fpill" data-filter="commercial">Commercial</button>
+  </div>
+  <span class="tb-count" id="countBadge"></span>
+</div>
+
+<!-- BODY -->
+<div class="body-wrap">
+  <div class="sidebar">
+    <div class="sb-head">
+      <h3>Listings</h3>
+      <p id="sbSub">Click a pin or card to explore</p>
+    </div>
+    <div class="sb-list" id="sbList">
+      <div class="sb-loading"><div class="spinner"></div><p>Loading listings…</p></div>
+    </div>
+  </div>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="toast" id="toast">
+      <div class="mini-spin" id="toastSpin"></div>
+      <span id="toastMsg">Loading…</span>
+    </div>
+    <div class="legend">
+      <div class="leg-row"><div class="leg-dot" style="background:#2d4a1e"></div>Residential</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#a8893a"></div>Commercial</div>
+      <div class="leg-row"><div class="leg-dot" style="background:rgba(141,198,63,0.3);border:1px dashed #8dc63f"></div>City Boundary</div>
+    </div>
+
+    <!-- Detail panel -->
+    <div class="panel" id="panel">
+      <button class="panel-close" id="panelClose">✕</button>
+      <div class="p-img" id="pImg">
+        <div class="p-overlay"><div class="p-price" id="pPrice"></div></div>
+      </div>
+      <div class="p-body">
+        <div class="p-title" id="pTitle"></div>
+        <div class="p-addr" id="pAddr"></div>
+        <div class="p-tags" id="pTags"></div>
+        <div id="pMLS"></div>
+        <div class="dg" id="pGrid"></div>
+        <div class="p-desc" id="pDesc"></div>
+        <div class="cmts">
+          <div class="cmts-title">Comments <span class="cmt-cnt" id="cCount">0</span></div>
+          <div class="cf">
+            <input type="text" class="ci" id="cName" placeholder="Your name">
+            <textarea class="ca" id="cText" placeholder="What are people saying?"></textarea>
+            <button class="cs" id="submitBtn">Post Comment</button>
+          </div>
+          <div class="cl" id="cList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var SR_USER='simplyrets',SR_PASS='simplyrets',SR_LIMIT=25;
+var AC=['#3d6628','#8dc63f','#5a8f3c','#a8893a','#2d4a1e','#6aab28'];
+var SC=[
+  [{id:'s1',author:'Taylor R.',text:'Toured Saturday — kitchen is stunning. Price feels fair.',time:'1 day ago',color:'#3d6628'},{id:'s2',author:'Agent Chen',text:'Multiple offers expected end of week. Act fast!',time:'3 hrs ago',color:'#8dc63f'},{id:'s3',author:'Denise M.',text:'Is the school district Westwood? Changes everything.',time:'1 hr ago',color:'#5a8f3c'}],
+  [{id:'s4',author:'Marcus D.',text:'Great cap rate. Anyone run rental yield numbers?',time:'2 days ago',color:'#5a8f3c'},{id:'s5',author:'Karen L.',text:'Similar units 8% above ask per my broker.',time:'6 hrs ago',color:'#a8893a'}],
+  [{id:'s6',author:'Priya N.',text:'Love the location! Parking included?',time:'5 hrs ago',color:'#a8893a'},{id:'s7',author:'Lisa W.',text:'Yes — two covered spots per disclosure.',time:'2 hrs ago',color:'#3d6628'},{id:'s8',author:'Bob K.',text:'Submitted an offer yesterday 🤞',time:'45 mins ago',color:'#8dc63f'},{id:'s9',author:'Rahul P.',text:'Good luck Bob! Loved it too but commute killed it.',time:'30 mins ago',color:'#5a8f3c'}],
+  [{id:'s10',author:'Sandra T.',text:'Open house Sunday 1–4pm! Who else?',time:'3 days ago',color:'#a8893a'},{id:'s11',author:'Chris H.',text:'We are! First time buyers 😅',time:'2 days ago',color:'#3d6628'}],
+  [{id:'s12',author:'Olivia J.',text:'That oak tree alone is worth the asking price 😍',time:'4 days ago',color:'#8dc63f'}],
+];
+var FB=[
+  {id:'f1',type:'residential',status:'active',price:'$485,000',rawPrice:485000,title:'Colonial Revival',address:'3379 Barranca St, Houston, TX',beds:3,baths:2,sqft:'1,735',year:1998,img:null,lat:29.762,lng:-95.373,agentName:'Kristie Barry',mlsId:'SC26031025',subType:'Colonial',desc:'Beautifully maintained colonial. Hardwood floors, updated kitchen with granite counters.',comments:[],lotSize:'—'},
+  {id:'f2',type:'residential',status:'active',price:'$3,100,000',rawPrice:3100000,title:'Modern Farmhouse',address:'1454 Hansen Ln, Houston, TX',beds:4,baths:5,sqft:'3,747',year:2019,img:null,lat:29.771,lng:-95.361,agentName:'Lori Lynch',mlsId:'SC28039398',subType:'Farmhouse',desc:'Stunning modern farmhouse with soaring ceilings, chef kitchen, resort-style pool.',comments:[],lotSize:'—'},
+  {id:'f3',type:'residential',status:'active',price:'$1,100,000',rawPrice:1100000,title:'Mediterranean Villa',address:'3004 Arezzo Dr, Houston, TX',beds:3,baths:3,sqft:'1,927',year:2005,img:null,lat:29.754,lng:-95.382,agentName:'Karlie Montgomery',mlsId:'NS28039039',subType:'Mediterranean',desc:'Elegant Mediterranean with tile roof, courtyard entry, stunning sunset views.',comments:[],lotSize:'—'},
+  {id:'f4',type:'residential',status:'pending',price:'$2,348,000',rawPrice:2348000,title:'Contemporary Estate',address:'5895 Tamarisk Way, Houston, TX',beds:4,baths:4,sqft:'3,559',year:2016,img:null,lat:29.783,lng:-95.351,agentName:'Amy Daane',mlsId:'SC26026602',subType:'Contemporary',desc:'Walls of glass, chef kitchen, lush landscaped grounds.',comments:[],lotSize:'—'},
+  {id:'f5',type:'commercial',status:'active',price:'$1,750,000',rawPrice:1750000,title:'Mixed-Use Building',address:'88 Commerce Blvd, Houston, TX',beds:'—',baths:'—',sqft:'4,200',year:2008,img:null,lat:29.744,lng:-95.393,agentName:'Derek Walsh',mlsId:'CM20045112',subType:'Commercial',desc:'Prime corner commercial with ground floor retail and two residential units above.',comments:[],lotSize:'—'},
+  {id:'f6',type:'residential',status:'active',price:'$625,000',rawPrice:625000,title:'Craftsman Bungalow',address:'221 Magnolia Ave, Houston, TX',beds:3,baths:2,sqft:'1,450',year:1935,img:null,lat:29.767,lng:-95.368,agentName:'Sam Torres',mlsId:'SC24018833',subType:'Bungalow',desc:'Charming 1935 craftsman with original built-ins and restored hardwoods.',comments:[],lotSize:'—'},
+];
+
+var listings=[],activeFilter='all',activeId=null,markers={},boundaryLayer=null,map;
+
+// ── INIT ──
+window.addEventListener('load',function(){
+  initMap();
+  setupToolbar();
+  // Check if search widget sent a city via sessionStorage
+  var storedCity='';
+  try{storedCity=sessionStorage.getItem('propertea_city')||'';}catch(e){}
+  if(storedCity){
+    document.getElementById('cityInput').value=storedCity;
+    loadListings(function(){setTimeout(doSearch,400);});
+  } else {
+    loadListings(null);
+  }
+  // Listen for postMessage from other widgets on same Wix page
+  window.addEventListener('message',function(e){
+    if(e.data&&e.data.type==='propertea-search'&&e.data.city){
+      document.getElementById('cityInput').value=e.data.city;
+      doSearch();
+    }
+    if(e.data&&e.data.type==='propertea-open'&&e.data.id){
+      openListing(e.data.id);
+    }
+  });
+});
+
+function initMap(){
+  map=L.map('map',{preferCanvas:true}).setView([29.76,-95.36],10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',maxZoom:19
+  }).addTo(map);
+  setTimeout(function(){map.invalidateSize();},300);
+}
+
+// ── LOAD ──
+function loadListings(cb){
+  showSbLoading();
+  var auth='Basic '+btoa(SR_USER+':'+SR_PASS);
+  fetch('https://api.simplyrets.com/properties?limit='+SR_LIMIT+'&status=Active',{
+    headers:{'Authorization':auth,'Accept':'application/json'}
+  })
+  .then(function(r){if(!r.ok)throw new Error();return r.json();})
+  .then(function(data){
+    listings=data.map(mapL);
+    listings.forEach(function(l,i){if(SC[i])l.comments=SC[i];});
+    finishLoad(cb);
+  })
+  .catch(function(){
+    listings=FB.slice();
+    listings.forEach(function(l,i){if(SC[i])l.comments=SC[i];});
+    finishLoad(cb);
+    showToast('📡 Preview mode — sample data',false);setTimeout(hideToast,3500);
+  });
+}
+
+function finishLoad(cb){
+  renderSb();addMarkers();
+  var cc=listings.filter(function(l){return l.lat&&l.lng;}).map(function(l){return[l.lat,l.lng];});
+  if(cc.length)map.fitBounds(cc,{padding:[50,50]});
+  if(cb)cb();
+}
+
+// ── CITY SEARCH ──
+function doSearch(){
+  var city=document.getElementById('cityInput').value.trim();
+  if(!city)return;
+  document.getElementById('tbSugg').classList.remove('show');
+  showToast('Finding "'+city+'"…',true);
+  closePanel();
+  fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(city)+'&limit=1&lang=en')
+  .then(function(r){if(!r.ok)throw new Error();return r.json();})
+  .then(function(data){
+    if(!data.features||!data.features.length){showToast('City not found',false);setTimeout(hideToast,3500);return;}
+    var f=data.features[0],c=f.geometry.coordinates,lat=c[1],lng=c[0];
+    var name=f.properties.city||f.properties.name||city;
+    var d=0.22,bounds=L.latLngBounds([lat-d,lng-d],[lat+d,lng+d]);
+    drawBoundary(bounds);
+    showToast('Loading listings…',true);
+    var auth='Basic '+btoa(SR_USER+':'+SR_PASS);
+    fetch('https://api.simplyrets.com/properties?limit='+SR_LIMIT+'&status=Active',{headers:{'Authorization':auth,'Accept':'application/json'}})
+    .then(function(r){if(!r.ok)throw new Error();return r.json();})
+    .then(function(data){
+      listings=data.map(mapL);
+      listings.forEach(function(l,i){if(SC[i])l.comments=SC[i];});
+      clearMarkers();addMarkers();renderSb();
+      var hg=listings.filter(function(l){return l.lat&&l.lng;}).length;
+      var isSandbox=hg>0&&listings[0]&&listings[0].lat&&Math.abs(listings[0].lat-lat)>3;
+      if(isSandbox){
+        var mc=listings.filter(function(l){return l.lat&&l.lng;}).map(function(l){return[l.lat,l.lng];});
+        if(mc.length)map.fitBounds(mc,{padding:[50,50]});
+        showToast('📍 '+name+' boundary set · Sandbox data shown',false);setTimeout(hideToast,5000);
+      } else {
+        map.fitBounds(bounds,{padding:[30,30]});
+        showToast('✓ '+listings.length+' listings near '+name,false);setTimeout(hideToast,3000);
+      }
+    })
+    .catch(function(){
+      clearMarkers();addMarkers();renderSb();
+      map.fitBounds(bounds,{padding:[30,30]});
+      showToast('📍 '+name+' — sample listings shown',false);setTimeout(hideToast,4000);
+    });
+  })
+  .catch(function(){showToast('Geocoding unavailable — try again',false);setTimeout(hideToast,4000);});
+}
+
+function drawBoundary(b){
+  if(boundaryLayer)map.removeLayer(boundaryLayer);
+  boundaryLayer=L.rectangle(b,{fillColor:'#8dc63f',fillOpacity:0.05,color:'#8dc63f',weight:2,dashArray:'8,5'}).addTo(map);
+}
+
+// ── MARKERS ──
+function addMarkers(){
+  listings.forEach(function(l){
+    if(!l.lat||!l.lng)return;
+    var m=L.marker([l.lat,l.lng],{icon:mkIcon(l,false)});
+    m.bindPopup(L.popup({closeButton:false,maxWidth:210}).setContent(
+      '<div class="pop"><strong>'+esc(l.title)+'</strong><small>'+esc(l.address)+'</small>'+
+      '<button class="pop-btn" onclick="openListing(\''+l.id+'\')">View Details &amp; Comments</button></div>'
+    ));
+    m.on('click',function(){resetIcons();if(markers[l.id])markers[l.id].setIcon(mkIcon(l,true));});
+    m.addTo(map);markers[l.id]=m;
+  });
+}
+function clearMarkers(){Object.values(markers).forEach(function(m){map.removeLayer(m);});markers={};}
+function mkIcon(l,sel){
+  var bg=sel?'#8dc63f':'#2d4a1e',fg=sel?'#2d4a1e':'#fbfdf8',bd=l.type==='residential'?'#5a8f3c':'#a8893a';
+  return L.divIcon({
+    html:'<div style="background:'+bg+';color:'+fg+';padding:5px 9px;border-radius:16px;font-size:9.5px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:DM Sans,sans-serif;box-shadow:0 3px 10px rgba(30,48,18,.4);border:2px solid '+bd+';position:relative;">'+l.price+'<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:'+bg+';border-bottom:none;"></div></div>',
+    className:'',iconAnchor:[44,32],popupAnchor:[0,-36]
+  });
+}
+function resetIcons(){listings.forEach(function(l){if(markers[l.id])markers[l.id].setIcon(mkIcon(l,false));});}
+
+// ── SIDEBAR ──
+function renderSb(){
+  var filtered=listings.filter(function(l){return activeFilter==='all'||l.type===activeFilter;});
+  document.getElementById('countBadge').textContent=filtered.length+' listing'+(filtered.length!==1?'s':'');
+  document.getElementById('sbSub').textContent=filtered.length+' listings loaded';
+  var list=document.getElementById('sbList');list.innerHTML='';
+  if(!filtered.length){list.innerHTML='<div class="sb-err">No listings match this filter.</div>';return;}
+  listings.forEach(function(l){
+    var vis=activeFilter==='all'||l.type===activeFilter;
+    var el=document.createElement('div');
+    el.className='scard'+(l.id===activeId?' active':'')+(vis?'':' hidden');
+    el.dataset.id=l.id;
+    var imgH=l.img?'<img src="'+esc(l.img)+'" loading="lazy" alt="">':'<div class="no-img">🏡</div>';
+    var meta=l.type==='residential'?'<span>🛏 '+l.beds+'</span><span>🛁 '+l.baths+'</span><span>'+l.sqft+'</span>':'<span>📐 '+l.sqft+'</span>';
+    var cc=l.comments.length;
+    el.innerHTML='<div class="scard-img">'+imgH+'<span class="s-badge '+(l.type==='residential'?'res':'com')+'">'+l.type+'</span><span class="s-status st-'+l.status+'">'+l.status+'</span></div><div class="scard-body"><div class="sc-price">'+l.price+'</div><div class="sc-addr">'+esc(l.address)+'</div><div class="sc-meta">'+meta+'</div>'+(cc>0?'<div class="sc-cmts">💬 '+cc+' comment'+(cc!==1?'s':'')+'</div>':'')+'</div>';
+    el.addEventListener('click',function(){openListing(l.id);});
+    list.appendChild(el);
+  });
+}
+
+function setFilter(type){
+  activeFilter=type;
+  document.querySelectorAll('.fpill').forEach(function(b){b.classList.toggle('active',b.dataset.filter===type);});
+  listings.forEach(function(l){var m=markers[l.id];if(!m)return;if(type==='all'||l.type===type)m.addTo(map);else map.removeLayer(m);});
+  renderSb();
+}
+
+// ── PANEL ──
+function openListing(id){
+  activeId=id;
+  var l=listings.find(function(x){return x.id===id;});if(!l)return;
+  document.querySelectorAll('.scard').forEach(function(c){c.classList.toggle('active',c.dataset.id===id);});
+  if(l.lat&&l.lng){
+    map.flyTo([l.lat,l.lng],15,{duration:1});
+    resetIcons();
+    if(markers[id]){markers[id].setIcon(mkIcon(l,true));markers[id].openPopup();}
+  }
+  var w=document.getElementById('pImg');w.innerHTML='';
+  if(l.img){var img=document.createElement('img');img.src=l.img;img.alt=l.title;w.appendChild(img);}
+  else{var ph=document.createElement('div');ph.className='no-img-lg';ph.textContent='🏡';w.appendChild(ph);}
+  var ov=document.createElement('div');ov.className='p-overlay';ov.innerHTML='<div class="p-price">'+l.price+'</div>';w.appendChild(ov);
+  document.getElementById('pTitle').textContent=l.title;
+  document.getElementById('pAddr').textContent=l.address;
+  document.getElementById('pTags').innerHTML=
+    '<span class="ptag '+(l.type==='residential'?'res':'com')+'">'+cap(l.type)+'</span>'+
+    '<span class="ptag '+l.status+'">'+cap(l.status)+'</span>'+
+    (l.subType?'<span class="ptag">'+esc(l.subType)+'</span>':'')+
+    (l.year&&l.year!=='—'?'<span class="ptag">Built '+l.year+'</span>':'');
+  document.getElementById('pMLS').innerHTML='<div class="mls-row">📋 <strong>'+esc(String(l.mlsId))+'</strong>'+(l.agentName?' · '+esc(l.agentName):'')+'</div>';
+  document.getElementById('pGrid').innerHTML=d('Price',l.price)+d('Sq Ft',l.sqft)+(l.type==='residential'?d('Beds',l.beds)+d('Baths',l.baths):'')+d('Year',l.year)+d('Lot',l.lotSize||'—');
+  document.getElementById('pDesc').textContent=l.desc;
+  renderComments(l);
+  document.getElementById('panel').classList.add('open');
+}
+function d(l,v){return'<div class="deet"><label>'+l+'</label><span>'+v+'</span></div>';}
+
+function closePanel(){
+  document.getElementById('panel').classList.remove('open');
+  activeId=null;resetIcons();if(map)map.closePopup();
+  document.querySelectorAll('.scard').forEach(function(c){c.classList.remove('active');});
+}
+
+// ── COMMENTS ──
+function renderComments(l){
+  document.getElementById('cCount').textContent=l.comments.length;
+  var list=document.getElementById('cList');
+  if(!l.comments.length){list.innerHTML='<div class="no-cmts">💬 No comments yet — be first!</div>';return;}
+  list.innerHTML=l.comments.map(function(c,i){
+    var col=c.color||AC[i%AC.length];
+    return'<div class="ci-item"><div class="ci-head"><div class="ci-av" style="background:'+col+'">'+esc(c.author.charAt(0).toUpperCase())+'</div><span class="ci-name">'+esc(c.author)+'</span><span class="ci-time">'+c.time+'</span><button class="ci-del" onclick="delC(\''+l.id+'\',\''+c.id+'\')">✕</button></div><div class="ci-text">'+esc(c.text)+'</div></div>';
+  }).join('');
+}
+function postComment(){
+  if(!activeId)return;
+  var l=listings.find(function(x){return x.id===activeId;});if(!l)return;
+  var n=document.getElementById('cName').value.trim(),t=document.getElementById('cText').value.trim();
+  if(!n||!t){alert('Please enter your name and a comment.');return;}
+  l.comments.push({id:'c'+Date.now(),author:n,text:t,time:'Just now',color:AC[l.comments.length%AC.length]});
+  document.getElementById('cName').value='';document.getElementById('cText').value='';
+  renderComments(l);renderSb();
+}
+function delC(lid,cid){
+  var l=listings.find(function(x){return x.id===lid;});if(!l)return;
+  l.comments=l.comments.filter(function(c){return c.id!==cid;});
+  renderComments(l);renderSb();
+}
+
+// ── TOOLBAR SETUP ──
+function setupToolbar(){
+  var inp=document.getElementById('cityInput'),sugg=document.getElementById('tbSugg');
+  var cities=[
+    {name:'Houston, TX',sub:'Harris County'},{name:'Austin, TX',sub:'Travis County'},
+    {name:'Dallas, TX',sub:'Dallas County'},{name:'Denver, CO',sub:'Denver County'},
+    {name:'Phoenix, AZ',sub:'Maricopa County'},{name:'Nashville, TN',sub:'Davidson County'},
+    {name:'Atlanta, GA',sub:'Fulton County'},{name:'Charlotte, NC',sub:'Mecklenburg County'},
+    {name:'San Luis Obispo, CA',sub:'SLO County'},{name:'Los Angeles, CA',sub:'LA County'},
+  ];
+  inp.addEventListener('input',function(){
+    var v=inp.value.trim().toLowerCase();
+    if(!v){sugg.classList.remove('show');return;}
+    var m=cities.filter(function(c){return c.name.toLowerCase().indexOf(v)>-1;});
+    if(!m.length){sugg.classList.remove('show');return;}
+    sugg.innerHTML=m.slice(0,5).map(function(c){
+      return'<div class="sugg-item" data-city="'+c.name+'">📍 '+c.name+' <small>'+c.sub+'</small></div>';
+    }).join('');
+    sugg.classList.add('show');
+    sugg.querySelectorAll('.sugg-item').forEach(function(el){
+      el.addEventListener('click',function(){inp.value=el.dataset.city;sugg.classList.remove('show');doSearch();});
+    });
+  });
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter')doSearch();});
+
+  // Search button — using addEventListener not onclick for Wix compatibility
+  document.getElementById('searchBtn').addEventListener('click',function(){doSearch();});
+
+  // Filter pills
+  document.querySelectorAll('.fpill').forEach(function(btn){
+    btn.addEventListener('click',function(){setFilter(btn.dataset.filter);});
+  });
+
+  // Panel close
+  document.getElementById('panelClose').addEventListener('click',function(){closePanel();});
+
+  // Submit comment button
+  document.getElementById('submitBtn').addEventListener('click',function(){postComment();});
+
+  // Close suggestions on outside click
+  document.addEventListener('click',function(e){
+    if(!e.target.closest('.toolbar-search'))sugg.classList.remove('show');
+  });
+}
+
+// ── DATA MAP ──
+function mapL(p){
+  var prop=p.property||{},addr=p.address||{},geo=p.geo||{},agent=p.agent||{};
+  var st=(prop.subType||prop.type||'').toLowerCase();
+  var type=st.indexOf('commercial')>-1?'commercial':'residential';
+  var rs=(p.mls&&p.mls.status)?p.mls.status.toLowerCase():'active';
+  var status=rs.indexOf('pend')>-1?'pending':rs.indexOf('clos')>-1?'closed':'active';
+  var fullAddr=[addr.streetNumber,addr.streetName,addr.city,addr.state].filter(Boolean).join(' ');
+  return{id:p.mlsId||String(Math.random()),mlsId:p.mlsId||'—',type,status,
+    subType:prop.subType||prop.type||'Residential',rawPrice:p.listPrice||0,
+    price:p.listPrice?'$'+Number(p.listPrice).toLocaleString():'N/A',
+    title:prop.style||prop.subType||'Property',address:fullAddr||'Address unavailable',
+    beds:prop.bedrooms||'—',baths:prop.bathsFull||'—',
+    sqft:prop.area?Number(prop.area).toLocaleString():'—',
+    year:prop.yearBuilt||'—',lotSize:prop.lotSize?prop.lotSize+' acres':'—',
+    desc:p.remarks||'No description provided.',
+    img:(p.photos||[])[0]||null,lat:geo.lat||null,lng:geo.lng||null,
+    agentName:agent.firstName?agent.firstName+' '+(agent.lastName||''):null,
+    comments:[]};
+}
+
+// ── HELPERS ──
+function showSbLoading(){document.getElementById('sbList').innerHTML='<div class="sb-loading"><div class="spinner"></div><p>Loading…</p></div>';}
+function showToast(m,loading){var t=document.getElementById('toast'),s=document.getElementById('toastSpin');document.getElementById('toastMsg').textContent=m;s.style.display=loading?'block':'none';t.classList.add('show');}
+function hideToast(){document.getElementById('toast').classList.remove('show');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+window.addEventListener('resize',function(){if(map)setTimeout(function(){map.invalidateSize();},100);});
+</script>
+</body>
+</html>

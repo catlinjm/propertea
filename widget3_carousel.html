@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProperTea — Featured Listings</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --lime:#8dc63f;--lime-dark:#6aab28;--forest:#2d4a1e;--forest-mid:#3d6628;--forest-light:#5a8f3c;
+  --paper:#f4f7ee;--cream:#e6edda;--ink:#1e3012;--slate:#4a5e3a;--white:#fbfdf8;--brass:#a8893a;
+}
+/* Wix: no overflow:hidden, let parent scroll */
+html,body{background:var(--paper);font-family:'DM Sans',sans-serif;color:var(--ink)}
+body{padding:0 0 24px}
+
+.section-head{padding:32px 28px 24px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.head-left{}
+.eyebrow{font-size:0.7rem;color:var(--lime-dark);text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:6px}
+.title{font-family:'Playfair Display',serif;font-size:clamp(1.4rem,3vw,1.9rem);font-weight:700;color:var(--ink);line-height:1.2}
+.sub{font-size:0.8rem;color:var(--slate);margin-top:4px}
+.view-all{
+  padding:9px 20px;border:1.5px solid var(--forest);color:var(--forest);
+  border-radius:24px;text-decoration:none;font-size:0.78rem;font-weight:600;
+  transition:all 0.2s;white-space:nowrap;cursor:pointer;background:transparent;
+  /* Wix button fix */
+  position:relative;z-index:10;pointer-events:auto;
+  font-family:'DM Sans',sans-serif;
+}
+.view-all:hover{background:var(--forest);color:var(--white)}
+
+/* Carousel track — horizontal scroll on mobile, grid on desktop */
+.carousel-outer{position:relative;padding:0 28px}
+.carousel{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:18px;
+}
+@media(max-width:640px){
+  .carousel-outer{padding:0 16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .carousel{
+    grid-template-columns:unset;
+    display:flex;gap:14px;
+    width:max-content;padding-bottom:8px;
+  }
+  .feat-card{width:240px;flex-shrink:0}
+}
+
+/* Card */
+.feat-card{
+  background:var(--white);border-radius:14px;overflow:hidden;
+  border:2px solid transparent;cursor:pointer;
+  transition:all 0.22s;box-shadow:0 2px 12px rgba(30,48,18,0.07);
+  display:block;text-decoration:none;color:inherit;
+  /* Wix: ensure whole card is tappable */
+  position:relative;z-index:1;pointer-events:auto;
+}
+.feat-card:hover{border-color:var(--forest-light);transform:translateY(-3px);box-shadow:0 10px 32px rgba(30,48,18,0.14)}
+.card-img{height:165px;position:relative;overflow:hidden;background:var(--cream)}
+.card-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s}
+.feat-card:hover .card-img img{transform:scale(1.04)}
+.no-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.2rem;opacity:0.22}
+.badge-type{position:absolute;top:10px;left:10px;padding:3px 9px;border-radius:9px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase}
+.badge-type.residential{background:var(--forest);color:var(--white)}
+.badge-type.commercial{background:var(--brass);color:var(--white)}
+.badge-status{position:absolute;top:10px;right:10px;padding:3px 9px;border-radius:9px;font-size:0.6rem;font-weight:700;background:rgba(251,253,248,0.94)}
+.badge-status.active{color:#2d5e1a}
+.badge-status.pending{color:#7a5010}
+.hot-badge{position:absolute;bottom:10px;left:10px;background:linear-gradient(135deg,var(--lime-dark),var(--lime));color:var(--white);padding:3px 9px;border-radius:9px;font-size:0.6rem;font-weight:700;display:flex;align-items:center;gap:3px}
+.card-body{padding:14px 16px 16px}
+.card-price{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;margin-bottom:2px;color:var(--ink)}
+.card-addr{font-size:0.7rem;color:var(--slate);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-meta{display:flex;gap:10px;font-size:0.68rem;color:var(--slate);padding-top:8px;border-top:1px solid var(--cream)}
+
+/* Comment strip */
+.cstrip{margin-top:10px;background:var(--paper);border-radius:7px;padding:9px 11px;border-left:3px solid var(--lime)}
+.cstrip-head{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.cstrip-av{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:700;color:var(--white);flex-shrink:0}
+.cstrip-name{font-size:0.68rem;font-weight:600;color:var(--ink)}
+.cstrip-time{font-size:0.6rem;color:var(--slate);margin-left:auto}
+.cstrip-text{font-size:0.7rem;color:var(--slate);line-height:1.45;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cstrip-more{font-size:0.66rem;color:var(--forest-mid);font-weight:600;margin-top:4px}
+
+/* Skeleton */
+.skel{background:var(--cream);border-radius:14px;height:300px;position:relative;overflow:hidden}
+.skel::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent);animation:shim 1.3s infinite}
+@keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+</style>
+</head>
+<body>
+
+<div class="section-head">
+  <div class="head-left">
+    <div class="eyebrow">🏡 Community Favourites</div>
+    <div class="title">Everyone's talking<br>about these</div>
+    <div class="sub">Ranked by comment activity this week</div>
+  </div>
+  <button class="view-all" id="viewAllBtn">View all on map →</button>
+</div>
+
+<div class="carousel-outer">
+  <div class="carousel" id="carousel"></div>
+</div>
+
+<script>
+var SR_USER='simplyrets',SR_PASS='simplyrets';
+var avatarColors=['#3d6628','#8dc63f','#5a8f3c','#a8893a','#2d4a1e','#6aab28'];
+var seedComments=[
+  [{id:'s1',author:'Taylor R.',text:'Toured this Saturday — kitchen is stunning. Price feels fair for the area.',time:'1 day ago',color:'#3d6628'},
+   {id:'s2',author:'Agent Chen',text:'Multiple offers expected by end of week. Act fast!',time:'3 hrs ago',color:'#8dc63f'},
+   {id:'s3',author:'Denise M.',text:'Is the school district Westwood? That changes everything.',time:'1 hr ago',color:'#5a8f3c'}],
+  [{id:'s4',author:'Marcus D.',text:'Great cap rate. Anyone run the rental yield numbers?',time:'2 days ago',color:'#5a8f3c'},
+   {id:'s5',author:'Karen L.',text:'Similar units going 8% above ask per my broker.',time:'6 hrs ago',color:'#a8893a'}],
+  [{id:'s6',author:'Priya N.',text:'Love the location! Is parking included?',time:'5 hrs ago',color:'#a8893a'},
+   {id:'s7',author:'Lisa W.',text:'Yes — two covered spots per the disclosure.',time:'2 hrs ago',color:'#3d6628'},
+   {id:'s8',author:'Bob K.',text:'Submitted an offer yesterday 🤞',time:'45 mins ago',color:'#8dc63f'},
+   {id:'s9',author:'Rahul P.',text:'Good luck Bob! Loved it too but commute killed it for us.',time:'30 mins ago',color:'#5a8f3c'}],
+  [{id:'s10',author:'Sandra T.',text:'Open house Sunday 1–4pm! Who else is going?',time:'3 days ago',color:'#a8893a'},
+   {id:'s11',author:'Chris H.',text:'We are! First time buyers, pretty nervous 😅',time:'2 days ago',color:'#3d6628'}],
+  [{id:'s12',author:'Olivia J.',text:'That backyard oak tree alone is worth the asking price 😍',time:'4 days ago',color:'#8dc63f'}],
+];
+var FALLBACK=[
+  {id:'f1',type:'residential',status:'active',price:'$485,000',title:'Colonial Revival',address:'3379 Barranca St, Houston, TX',beds:3,baths:2,sqft:'1,735',img:null,comments:[]},
+  {id:'f2',type:'residential',status:'active',price:'$3,100,000',title:'Modern Farmhouse',address:'1454 Hansen Ln, Houston, TX',beds:4,baths:5,sqft:'3,747',img:null,comments:[]},
+  {id:'f3',type:'residential',status:'active',price:'$1,100,000',title:'Mediterranean Villa',address:'3004 Arezzo Dr, Houston, TX',beds:3,baths:3,sqft:'1,927',img:null,comments:[]},
+  {id:'f4',type:'residential',status:'pending',price:'$2,348,000',title:'Contemporary Estate',address:'5895 Tamarisk Way, Houston, TX',beds:4,baths:4,sqft:'3,559',img:null,comments:[]},
+  {id:'f5',type:'commercial',status:'active',price:'$1,750,000',title:'Mixed-Use Building',address:'88 Commerce Blvd, Houston, TX',beds:'—',baths:'—',sqft:'4,200',img:null,comments:[]},
+  {id:'f6',type:'residential',status:'active',price:'$625,000',title:'Craftsman Bungalow',address:'221 Magnolia Ave, Houston, TX',beds:3,baths:2,sqft:'1,450',img:null,comments:[]},
+];
+
+function showSkels(){var c=document.getElementById('carousel');c.innerHTML='';for(var i=0;i<6;i++)c.innerHTML+='<div class="skel"></div>';}
+
+function mapL(p){
+  var prop=p.property||{},addr=p.address||{},agent=p.agent||{};
+  var st=(prop.subType||prop.type||'').toLowerCase();
+  var type=st.indexOf('commercial')>-1?'commercial':'residential';
+  var rs=(p.mls&&p.mls.status)?p.mls.status.toLowerCase():'active';
+  var status=rs.indexOf('pend')>-1?'pending':rs.indexOf('clos')>-1?'closed':'active';
+  var fullAddr=[addr.streetNumber,addr.streetName,addr.city,addr.state].filter(Boolean).join(' ');
+  return{id:p.mlsId||String(Math.random()),type,status,price:p.listPrice?'$'+Number(p.listPrice).toLocaleString():'N/A',title:prop.style||prop.subType||'Property',address:fullAddr||'Address unavailable',beds:prop.bedrooms||'—',baths:prop.bathsFull||'—',sqft:prop.area?Number(prop.area).toLocaleString():'—',img:(p.photos||[])[0]||null,comments:[]};
+}
+
+function render(listings){
+  var sorted=listings.slice().sort(function(a,b){return b.comments.length-a.comments.length;}).slice(0,6);
+  var c=document.getElementById('carousel');c.innerHTML='';
+  sorted.forEach(function(l){
+    var el=document.createElement('div');el.className='feat-card';
+    var cc=l.comments.length,latest=l.comments[l.comments.length-1];
+    var imgH=l.img?'<img src="'+esc(l.img)+'" loading="lazy" alt="">':'<div class="no-img">🏡</div>';
+    var strip='';
+    if(latest){
+      strip='<div class="cstrip"><div class="cstrip-head"><div class="cstrip-av" style="background:'+(latest.color||'#3d6628')+'">'+esc(latest.author.charAt(0))+'</div><span class="cstrip-name">'+esc(latest.author)+'</span><span class="cstrip-time">'+latest.time+'</span></div><div class="cstrip-text">'+esc(latest.text)+'</div>'+(cc>1?'<div class="cstrip-more">+ '+(cc-1)+' more comment'+(cc-1!==1?'s':'')+'</div>':'')+'</div>';
+    }
+    el.innerHTML='<div class="card-img">'+imgH+'<span class="badge-type '+l.type+'">'+l.type+'</span><span class="badge-status '+l.status+'">'+l.status+'</span>'+(cc>0?'<div class="hot-badge">🔥 '+cc+' comment'+(cc!==1?'s':'')+'</div>':'')+'</div><div class="card-body"><div class="card-price">'+l.price+'</div><div class="card-addr">'+esc(l.address)+'</div><div class="card-meta">'+(l.beds!=='—'?'<span>🛏 '+l.beds+'</span>':'')+(l.baths!=='—'?'<span>🛁 '+l.baths+'</span>':'')+'<span>📐 '+l.sqft+'</span></div>'+strip+'</div>';
+    el.addEventListener('click',function(){
+      // Tell Wix parent to open map and highlight this listing
+      try{window.parent.postMessage({type:'propertea-open',id:l.id},'*');}catch(e){}
+    });
+    c.appendChild(el);
+  });
+}
+
+// "View all" button
+document.getElementById('viewAllBtn').addEventListener('click',function(){
+  try{window.parent.postMessage({type:'propertea-viewall'},'*');}catch(e){}
+});
+
+showSkels();
+var auth='Basic '+btoa(SR_USER+':'+SR_PASS);
+fetch('https://api.simplyrets.com/properties?limit=25&status=Active',{headers:{'Authorization':auth,'Accept':'application/json'}})
+.then(function(r){if(!r.ok)throw new Error();return r.json();})
+.then(function(data){
+  var listings=data.map(mapL);
+  listings.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
+  render(listings);
+})
+.catch(function(){
+  var fb=FALLBACK.slice();
+  fb.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
+  render(fb);
+});
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
