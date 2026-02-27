@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProperTea — Map Search</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --lime:#8dc63f;--lime-dark:#6aab28;--forest:#2d4a1e;--forest-mid:#3d6628;--forest-light:#5a8f3c;
+  --paper:#f4f7ee;--cream:#e6edda;--ink:#1e3012;--slate:#4a5e3a;--white:#fbfdf8;--brass:#a8893a;
+  --shadow:0 4px 24px rgba(30,48,18,0.14);--shadow-lg:0 12px 48px rgba(30,48,18,0.2);--radius:10px;--bar:58px;
+}
+html,body{height:100%;width:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);font-size:14px;display:flex;flex-direction:column}
+
+/* TOP BAR */
+.topbar{height:var(--bar);background:var(--forest);flex-shrink:0;display:flex;align-items:center;gap:0;border-bottom:2px solid rgba(141,198,63,0.2);z-index:600;position:relative}
+.topbar-logo{display:flex;align-items:center;padding:0 18px;border-right:1px solid rgba(141,198,63,0.15);height:100%;flex-shrink:0;text-decoration:none}
+.topbar-logo img{height:30px;width:auto}
+.topbar-search{display:flex;align-items:center;flex:1;gap:0;padding:0 16px;height:100%;border-right:1px solid rgba(141,198,63,0.12);max-width:460px}
+.topbar-search-wrap{position:relative;flex:1;display:flex;align-items:center}
+.topbar-search-icon{color:rgba(245,253,248,0.4);font-size:0.9rem;margin-right:8px;flex-shrink:0}
+.topbar-input{flex:1;background:transparent;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:0.85rem;color:var(--white);padding:6px 0}
+.topbar-input::placeholder{color:rgba(245,253,248,0.28)}
+.topbar-search-btn{padding:6px 16px;background:var(--lime);color:var(--forest);border:none;border-radius:20px;font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;transition:all 0.2s;white-space:nowrap;margin-left:10px;flex-shrink:0}
+.topbar-search-btn:hover{background:var(--lime-dark);color:var(--white)}
+.topbar-sugg{position:absolute;top:calc(100% + 8px);left:-10px;width:340px;background:var(--white);border-radius:10px;box-shadow:var(--shadow-lg);overflow:hidden;display:none;z-index:700;border:1px solid var(--cream)}
+.topbar-sugg.show{display:block}
+.sugg-item{padding:10px 16px;font-size:0.82rem;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.15s}
+.sugg-item:hover{background:var(--paper)}
+.sugg-item small{color:var(--slate);font-size:0.7rem;margin-left:auto}
+.topbar-filters{display:flex;align-items:center;gap:6px;padding:0 16px;height:100%;border-right:1px solid rgba(141,198,63,0.12)}
+.fpill{padding:5px 13px;border-radius:20px;border:1px solid rgba(141,198,63,0.25);background:transparent;color:rgba(245,253,248,0.5);font-family:'DM Sans',sans-serif;font-size:0.72rem;font-weight:500;cursor:pointer;transition:all 0.2s;letter-spacing:0.03em;white-space:nowrap}
+.fpill.active,.fpill:hover{background:var(--lime);border-color:var(--lime);color:var(--forest);font-weight:700}
+.count-badge{font-size:0.68rem;color:rgba(245,253,248,0.3);margin-left:auto;padding:0 16px;white-space:nowrap}
+.topbar-home{padding:0 18px;height:100%;display:flex;align-items:center;text-decoration:none;color:rgba(245,253,248,0.4);font-size:0.78rem;transition:color 0.2s;white-space:nowrap;gap:5px}
+.topbar-home:hover{color:var(--lime)}
+
+/* LAYOUT */
+.app{display:flex;flex:1;min-height:0;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:310px;min-width:310px;background:var(--paper);display:flex;flex-direction:column;border-right:1px solid var(--cream);overflow:hidden;z-index:10}
+.sidebar-head{padding:14px 16px 12px;background:var(--white);border-bottom:1px solid var(--cream);flex-shrink:0}
+.sidebar-head h3{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--ink);margin-bottom:2px}
+.sidebar-head p{font-size:0.7rem;color:var(--slate)}
+.listings-scroll{flex:1;overflow-y:auto;padding:10px}
+.listings-scroll::-webkit-scrollbar{width:3px}
+.listings-scroll::-webkit-scrollbar-thumb{background:var(--forest-light);border-radius:2px}
+.scard{background:var(--white);border-radius:var(--radius);margin-bottom:8px;cursor:pointer;border:2px solid transparent;transition:all 0.2s;overflow:hidden;box-shadow:0 2px 6px rgba(30,48,18,0.06)}
+.scard:hover{border-color:var(--forest-light);box-shadow:var(--shadow);transform:translateY(-1px)}
+.scard.active{border-color:var(--lime)}
+.scard.hidden{display:none}
+.scard-img{height:90px;position:relative;overflow:hidden;background:var(--cream)}
+.scard-img img{width:100%;height:100%;object-fit:cover;display:block}
+.scard-img .no-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;opacity:0.25}
+.scard-badge{position:absolute;top:7px;left:7px;padding:2px 7px;border-radius:8px;font-size:0.58rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase}
+.badge-res{background:var(--forest);color:var(--white)}
+.badge-com{background:var(--brass);color:var(--white)}
+.scard-status{position:absolute;top:7px;right:7px;padding:2px 7px;border-radius:8px;font-size:0.58rem;font-weight:700;background:rgba(251,253,248,0.93)}
+.st-active{color:#2d5e1a}.st-pending{color:#8a6010}.st-closed{color:#8a2020}
+.scard-body{padding:9px 11px}
+.scard-price{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:700;color:var(--ink);margin-bottom:2px}
+.scard-addr{font-size:0.68rem;color:var(--slate);margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scard-meta{display:flex;gap:8px;font-size:0.65rem;color:var(--slate)}
+.scard-comments{display:inline-flex;align-items:center;gap:3px;font-size:0.63rem;color:var(--forest-mid);font-weight:600;margin-top:5px;background:#e8f4d8;padding:2px 7px;border-radius:7px;border:1px solid #b8d4a0}
+.sidebar-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:10px;color:var(--slate)}
+.spinner{width:26px;height:26px;border:3px solid var(--cream);border-top-color:var(--lime);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sidebar-loading p{font-size:0.76rem}
+.sidebar-error{padding:20px;text-align:center;color:var(--slate);font-size:0.76rem}
+.retry-btn{margin-top:10px;padding:6px 14px;background:var(--forest);color:var(--white);border:none;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:0.72rem;font-weight:600;cursor:pointer}
+.retry-btn:hover{background:var(--lime);color:var(--forest)}
+
+/* MAP */
+.map-wrap{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+.map-toast{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(30,48,18,0.92);backdrop-filter:blur(8px);color:var(--white);border-radius:24px;padding:10px 20px;font-size:0.77rem;display:none;align-items:center;gap:8px;max-width:85%;text-align:center;white-space:normal;line-height:1.45;box-shadow:0 4px 20px rgba(0,0,0,0.25)}
+.map-toast.show{display:flex}
+.mini-spin{width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:var(--lime);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0}
+.map-legend{position:absolute;bottom:24px;right:16px;z-index:500;background:rgba(251,253,248,0.96);backdrop-filter:blur(6px);border-radius:10px;padding:10px 14px;font-size:0.7rem;color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--cream)}
+.leg-item{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.leg-item:last-child{margin-bottom:0}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* DETAIL PANEL */
+.detail-panel{position:absolute;right:0;top:0;bottom:0;width:360px;background:var(--white);box-shadow:-6px 0 32px rgba(30,48,18,0.18);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);z-index:400;overflow:hidden}
+.detail-panel.open{transform:translateX(0)}
+.panel-close{position:absolute;top:11px;right:11px;width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,0.4);background:rgba(30,48,18,0.55);color:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;transition:all 0.2s;z-index:2}
+.panel-close:hover{background:var(--forest)}
+.panel-img-wrap{height:185px;flex-shrink:0;position:relative;overflow:hidden;background:var(--cream)}
+.panel-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.panel-img-wrap .no-img-lg{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;opacity:0.25}
+.panel-overlay{position:absolute;bottom:0;left:0;right:0;padding:14px 16px;background:linear-gradient(transparent,rgba(20,40,12,0.78))}
+.panel-price{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--white)}
+.panel-body{flex:1;overflow-y:auto;padding:16px 18px 24px}
+.panel-body::-webkit-scrollbar{width:3px}
+.panel-body::-webkit-scrollbar-thumb{background:var(--forest-light);border-radius:2px}
+.panel-title{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;margin-bottom:2px;color:var(--ink)}
+.panel-addr{font-size:0.73rem;color:var(--slate);margin-bottom:12px}
+.panel-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.ptag{padding:3px 9px;border-radius:9px;font-size:0.64rem;font-weight:500;background:var(--cream);color:var(--slate)}
+.ptag.res{background:#e0f0cc;color:#1e4010;border:1px solid #a8cc80}
+.ptag.com{background:#f5eed8;color:#5a4010;border:1px solid #d4bc7a}
+.ptag.active{background:#e0f0cc;color:#1e4010;border:1px solid #a8cc80}
+.ptag.pending{background:#f5eed8;color:#7a5010;border:1px solid #d4bc7a}
+.mls-strip{display:inline-flex;align-items:center;gap:5px;font-size:0.62rem;color:var(--slate);background:var(--paper);border:1px solid var(--cream);border-radius:6px;padding:3px 8px;margin-bottom:12px}
+.mls-strip strong{color:var(--forest-mid)}
+.deets-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
+.deet{background:var(--paper);border-radius:7px;padding:8px 10px;border:1px solid var(--cream)}
+.deet label{font-size:0.6rem;color:var(--slate);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:2px}
+.deet span{font-size:0.82rem;font-weight:600;color:var(--ink)}
+.panel-desc{font-size:0.75rem;color:var(--slate);line-height:1.6;margin-bottom:16px}
+.cmts{border-top:1px solid var(--cream);padding-top:16px}
+.cmts-title{font-family:'Playfair Display',serif;font-size:0.9rem;font-weight:600;color:var(--ink);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.cmts-count{background:var(--lime);color:var(--forest);width:18px;height:18px;border-radius:50%;font-family:'DM Sans',sans-serif;font-size:0.63rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.cmt-form{margin-bottom:14px}
+.cmt-inp,.cmt-area{width:100%;border:1px solid var(--cream);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:0.76rem;color:var(--ink);background:var(--paper);transition:border-color 0.2s;display:block}
+.cmt-inp{padding:7px 10px;margin-bottom:5px}
+.cmt-area{padding:7px 10px;resize:vertical;min-height:58px;margin-bottom:7px}
+.cmt-inp:focus,.cmt-area:focus{outline:none;border-color:var(--lime)}
+.cmt-submit{padding:7px 15px;background:var(--forest);color:var(--white);border:none;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:0.72rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+.cmt-submit:hover{background:var(--lime);color:var(--forest)}
+.cmt-list{display:flex;flex-direction:column;gap:7px}
+.cmt-item{background:var(--paper);border-radius:8px;padding:9px 11px;animation:fadeUp 0.24s ease;border:1px solid var(--cream)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.cmt-head{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.cmt-av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;color:var(--white);flex-shrink:0}
+.cmt-name{font-size:0.72rem;font-weight:600;color:var(--ink)}
+.cmt-time{font-size:0.61rem;color:var(--slate);margin-left:auto}
+.cmt-text{font-size:0.72rem;color:var(--slate);line-height:1.5}
+.cmt-del{background:none;border:none;cursor:pointer;color:var(--slate);font-size:0.66rem;opacity:0.35;transition:opacity 0.2s;padding:2px}
+.cmt-del:hover{opacity:1;color:#8a2020}
+.no-cmts{text-align:center;padding:14px;color:var(--slate);font-size:0.72rem;background:var(--paper);border-radius:7px;border:1px dashed var(--cream)}
+.leaflet-popup-content-wrapper{border-radius:9px;box-shadow:0 8px 28px rgba(30,48,18,0.18);padding:0;overflow:hidden}
+.leaflet-popup-content{margin:0}
+.pop-inner{padding:11px 13px;min-width:170px}
+.pop-inner strong{font-family:'Playfair Display',serif;font-size:0.9rem;display:block;margin-bottom:2px;color:#1e3012}
+.pop-inner small{color:#4a5e3a;font-size:0.68rem}
+.pop-btn{display:block;width:100%;margin-top:8px;padding:7px;background:#2d4a1e;color:#fbfdf8;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.7rem;font-weight:600;cursor:pointer;transition:background 0.2s;text-align:center}
+.pop-btn:hover{background:#8dc63f;color:#2d4a1e}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html" class="topbar-logo">
+    <img src="data:image/png;base64,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/wCVWQWqcV9JR610Pewm7WWSO1qSO7o5m9Wn4Hq0+hK17qj41JxMVaHXBopvjb5ayWIO6Ob3KwXsu6cBp29WWmAukca1TcdzR99w+J2HyKrIK2Shzhw760sWRbY+yuruHvCXm5eTb4q+misJDpzSmNwkH3aldrHH95/e53zcSVx9PsUq7qNcfU07WnmeX2NQ9ojVZ0vw6stry9neyLvslcg9W8w99w+Dd/mQqd9psFKHtT6oOZ4jHEQy81XDxdiAD07Z2zpD8fut/wCFRLzq97LxKvojBdVeuo8djtdquRMui6UDvcAvzNoDu3K1VSya6yZTtvVfjLbA6N6lYx9lzu87BSJw04Q6w1s6OzHVOMxTupu22FocP/tt73/gPVXjbOTwkZoU5SeEaXQr3cpkIaNGtNbtzvDIoYmlz3uPgAFangbwXg0u6HUGpmRWc2BzQwAh0dM+e/7T/XuHh5rcuGPDPTWgqe2MgNjIPbyzX5wDK/zA8Gt9B891uy6ttZKHtT5OhRt+neXIREW+bQREQBERAEREAREQBERAEREAWI1fpvD6swE+Cz1U2sfYLTLEJHM5uVwcOrSD3gLLogI901wX4b6czlTN4fTra1+o/ngl+1Sv5XbEb7OcR3EqQkRMYISS4CIiEhERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAaLmuGWAyXE7Fa85OyvUuYzxtb7llwbtG9395nn47DyC2nUmUhwmn7+YsbmKlXfO4Abk8rSdh6nuWRXBAI2I3ChRSzgjpSzg84MnkLmTylrI3O1dZtTPmlJady5xJP4lfdKhlLzgyljr1px8Ia73/kCvRg14CesER/4AvtjGMGzGtaPJo2Wp/Rpvk0/6PfkoXhuFvETMOaKekMoGu7n2Iuwb9ZCFI+lfZl1NceyTUWao4uHvdHWBnl+Hg0fHcq16K0bSC5LxtILkjnQ3BfQWk3R2IcV+krzOotXyJXA+bW7crfkN/VSKuUWxGKisI2IxUVhBERWLBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAf//Z" alt="ProperTea">
+  </a>
+  <div class="topbar-search">
+    <div class="topbar-search-wrap">
+      <span class="topbar-search-icon">🔍</span>
+      <input class="topbar-input" id="cityInput" type="text" placeholder="Search city, e.g. Houston TX…" autocomplete="off" onkeydown="if(event.key==='Enter')searchCity()">
+      <div class="topbar-sugg" id="topbarSugg"></div>
+    </div>
+    <button class="topbar-search-btn" onclick="searchCity()">Search</button>
+  </div>
+  <div class="topbar-filters">
+    <button class="fpill active" onclick="setFilter('all',this)">All</button>
+    <button class="fpill" onclick="setFilter('residential',this)">Residential</button>
+    <button class="fpill" onclick="setFilter('commercial',this)">Commercial</button>
+  </div>
+  <span class="count-badge" id="countBadge"></span>
+  <a href="index.html" class="topbar-home">← Home</a>
+</div>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <h3>Listings</h3>
+      <p id="sidebarSub">Click a card or pin to view details</p>
+    </div>
+    <div class="listings-scroll" id="sidebarList">
+      <div class="sidebar-loading"><div class="spinner"></div><p>Loading MLS data…</p></div>
+    </div>
+  </div>
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-toast" id="mapToast">
+      <div class="mini-spin" id="toastSpinner"></div>
+      <span id="toastText">Loading…</span>
+    </div>
+    <div class="map-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#2d4a1e"></div>Residential</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#a8893a"></div>Commercial</div>
+      <div class="leg-item"><div class="leg-dot" style="background:rgba(141,198,63,0.3);border:1px dashed #8dc63f"></div>City Boundary</div>
+    </div>
+    <div class="detail-panel" id="detailPanel">
+      <button class="panel-close" onclick="closePanel()">✕</button>
+      <div class="panel-img-wrap" id="panelImg">
+        <div class="panel-overlay"><div class="panel-price" id="pPrice"></div></div>
+      </div>
+      <div class="panel-body">
+        <div class="panel-title" id="pTitle"></div>
+        <div class="panel-addr" id="pAddr"></div>
+        <div class="panel-tags" id="pTags"></div>
+        <div id="pMLS"></div>
+        <div class="deets-grid" id="pGrid"></div>
+        <div class="panel-desc" id="pDesc"></div>
+        <div class="cmts">
+          <div class="cmts-title">Comments <span class="cmts-count" id="cCount">0</span></div>
+          <div class="cmt-form">
+            <input type="text" class="cmt-inp" id="cName" placeholder="Your name">
+            <textarea class="cmt-area" id="cText" placeholder="What are people saying about this one?"></textarea>
+            <button class="cmt-submit" onclick="addComment()">Post Comment</button>
+          </div>
+          <div class="cmt-list" id="cList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var SR_USER='simplyrets',SR_PASS='simplyrets',SR_LIMIT=25;
+var avatarColors=['#3d6628','#8dc63f','#5a8f3c','#a8893a','#2d4a1e','#6aab28'];
+var seedComments=[
+  [{id:'s1',author:'Taylor R.',text:'Toured this Saturday — kitchen is stunning. Price feels fair.',time:'1 day ago',color:'#3d6628'},
+   {id:'s2',author:'Agent Chen',text:'Multiple offers expected by end of week. Act fast!',time:'3 hours ago',color:'#8dc63f'},
+   {id:'s3',author:'Denise M.',text:'Is the school district Westwood? That changes everything.',time:'1 hour ago',color:'#5a8f3c'}],
+  [{id:'s4',author:'Marcus D.',text:'Great cap rate. Has anyone run the rental yield numbers?',time:'2 days ago',color:'#5a8f3c'},
+   {id:'s5',author:'Karen L.',text:'My broker says similar units going 8% above ask.',time:'6 hours ago',color:'#a8893a'}],
+  [{id:'s6',author:'Priya N.',text:'Love the location! Is parking included?',time:'5 hours ago',color:'#a8893a'},
+   {id:'s7',author:'Lisa W.',text:'Yes — two covered spots per the disclosure docs.',time:'2 hours ago',color:'#3d6628'},
+   {id:'s8',author:'Bob K.',text:'Submitted an offer yesterday 🤞',time:'45 mins ago',color:'#8dc63f'},
+   {id:'s9',author:'Rahul P.',text:'Good luck Bob! Loved it too but commute was a dealbreaker.',time:'30 mins ago',color:'#5a8f3c'}],
+  [{id:'s10',author:'Sandra T.',text:'Open house Sunday 1–4pm! Who else is going?',time:'3 days ago',color:'#a8893a'},
+   {id:'s11',author:'Chris H.',text:'We are! First time buyers, bit nervous 😅',time:'2 days ago',color:'#3d6628'}],
+  [{id:'s12',author:'Olivia J.',text:'That backyard oak tree alone is worth the price 😍',time:'4 days ago',color:'#8dc63f'}],
+];
+
+var FALLBACK_LISTINGS=[
+  {id:'f1',type:'residential',status:'active',price:'$485,000',rawPrice:485000,title:'Colonial Revival',address:'3379 Barranca St, Houston, TX',beds:3,baths:2,sqft:'1,735',year:1998,img:null,lat:29.762,lng:-95.373,agentName:'Kristie Barry',mlsId:'SC26031025',subType:'Colonial',desc:'Beautifully maintained colonial. Hardwood floors, updated kitchen with granite counters.',comments:[]},
+  {id:'f2',type:'residential',status:'active',price:'$3,100,000',rawPrice:3100000,title:'Modern Farmhouse',address:'1454 Hansen Ln, Houston, TX',beds:4,baths:5,sqft:'3,747',year:2019,img:null,lat:29.771,lng:-95.361,agentName:'Lori Lynch',mlsId:'SC28039398',subType:'Farmhouse',desc:'Stunning modern farmhouse with soaring ceilings, chef kitchen, resort-style pool.',comments:[]},
+  {id:'f3',type:'residential',status:'active',price:'$1,100,000',rawPrice:1100000,title:'Mediterranean Villa',address:'3004 Arezzo Dr, Houston, TX',beds:3,baths:3,sqft:'1,927',year:2005,img:null,lat:29.754,lng:-95.382,agentName:'Karlie Montgomery',mlsId:'NS28039039',subType:'Mediterranean',desc:'Elegant Mediterranean with tile roof, courtyard entry, and stunning sunset views.',comments:[]},
+  {id:'f4',type:'residential',status:'pending',price:'$2,348,000',rawPrice:2348000,title:'Contemporary Estate',address:'5895 Tamarisk Way, Houston, TX',beds:4,baths:4,sqft:'3,559',year:2016,img:null,lat:29.783,lng:-95.351,agentName:'Amy Daane',mlsId:'SC26026602',subType:'Contemporary',desc:'Stunning contemporary with walls of glass and lush landscaped grounds. Backup offers welcome.',comments:[]},
+  {id:'f5',type:'commercial',status:'active',price:'$1,750,000',rawPrice:1750000,title:'Mixed-Use Building',address:'88 Commerce Blvd, Houston, TX',beds:'—',baths:'—',sqft:'4,200',year:2008,img:null,lat:29.744,lng:-95.393,agentName:'Derek Walsh',mlsId:'CM20045112',subType:'Commercial',desc:'Prime corner commercial with ground floor retail and two residential units above.',comments:[]},
+  {id:'f6',type:'residential',status:'active',price:'$625,000',rawPrice:625000,title:'Craftsman Bungalow',address:'221 Magnolia Ave, Houston, TX',beds:3,baths:2,sqft:'1,450',year:1935,img:null,lat:29.767,lng:-95.368,agentName:'Sam Torres',mlsId:'SC24018833',subType:'Bungalow',desc:'Charming 1935 craftsman with original built-ins, restored hardwoods, and a dreamy front porch.',comments:[]},
+];
+
+var listings=[],activeFilter='all',activeId=null,markers={},boundaryLayer=null,map;
+
+document.addEventListener('DOMContentLoaded',function(){
+  initMap();
+  setupSearch();
+  var params=new URLSearchParams(window.location.search);
+  var cityParam=params.get('city'),idParam=params.get('id');
+  if(cityParam){
+    document.getElementById('cityInput').value=cityParam;
+    loadListings(function(){setTimeout(searchCity,300);});
+  } else {
+    loadListings(idParam?function(){openListing(idParam);}:null);
+  }
+});
+
+function initMap(){
+  map=L.map('map',{preferCanvas:true}).setView([29.76,-95.36],10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',maxZoom:19}).addTo(map);
+  setTimeout(function(){map.invalidateSize();},300);
+}
+
+function loadListings(callback){
+  showSidebarLoading();
+  var auth='Basic '+btoa(SR_USER+':'+SR_PASS);
+  fetch('https://api.simplyrets.com/properties?limit='+SR_LIMIT+'&status=Active',{headers:{'Authorization':auth,'Accept':'application/json'}})
+  .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+  .then(function(data){
+    listings=data.map(mapListing);
+    listings.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
+    finishLoad(callback);
+  })
+  .catch(function(){
+    listings=FALLBACK_LISTINGS.slice();
+    listings.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
+    finishLoad(callback);
+    showToast('📡 Preview mode — showing sample listings',false);setTimeout(hideToast,4000);
+  });
+}
+
+function finishLoad(callback){
+  renderSidebar();addMarkers();
+  var coords=listings.filter(function(l){return l.lat&&l.lng;}).map(function(l){return[l.lat,l.lng];});
+  if(coords.length)map.fitBounds(coords,{padding:[60,60]});
+  if(callback)callback();
+}
+
+function searchCity(){
+  var city=document.getElementById('cityInput').value.trim();
+  if(!city)return;
+  document.getElementById('topbarSugg').classList.remove('show');
+  showToast('Finding "'+city+'"…',true);closePanel();
+  fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(city)+'&limit=1&lang=en')
+  .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+  .then(function(data){
+    if(!data.features||!data.features.length){showToast('City not found — try "Houston, TX"',false);setTimeout(hideToast,4000);return;}
+    var f=data.features[0],c=f.geometry.coordinates,lat=c[1],lng=c[0];
+    var cityName=f.properties.city||f.properties.name||city;
+    var delta=0.22,bounds=L.latLngBounds([lat-delta,lng-delta],[lat+delta,lng+delta]);
+    drawBoundary(bounds);
+    showToast('Loading listings…',true);
+    var auth='Basic '+btoa(SR_USER+':'+SR_PASS);
+    fetch('https://api.simplyrets.com/properties?limit='+SR_LIMIT+'&status=Active',{headers:{'Authorization':auth,'Accept':'application/json'}})
+    .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+    .then(function(data){
+      listings=data.map(mapListing);
+      listings.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
+      clearMarkers();addMarkers();renderSidebar();
+      var hasGeo=listings.filter(function(l){return l.lat&&l.lng;}).length;
+      var isSandbox=hasGeo>0&&listings[0]&&listings[0].lat&&Math.abs(listings[0].lat-lat)>3;
+      if(isSandbox){var mc=listings.filter(function(l){return l.lat&&l.lng;}).map(function(l){return[l.lat,l.lng];});if(mc.length)map.fitBounds(mc,{padding:[60,60]});showToast('📍 Boundary: '+cityName+' · Showing sandbox data (Houston area)',false);setTimeout(hideToast,5000);}
+      else{map.fitBounds(bounds,{padding:[30,30]});showToast('✓ '+listings.length+' listings near '+cityName,false);setTimeout(hideToast,3000);}
+    })
+    .catch(function(){
+      // Fallback if API blocked in preview
+      clearMarkers();addMarkers();renderSidebar();
+      map.fitBounds(bounds,{padding:[30,30]});
+      showToast('📍 Boundary set · Sample listings shown',false);setTimeout(hideToast,4000);
+    });
+  })
+  .catch(function(){showToast('Geocoding unavailable — try again shortly.',false);setTimeout(hideToast,4000);});
+}
+
+function drawBoundary(bounds){if(boundaryLayer)map.removeLayer(boundaryLayer);boundaryLayer=L.rectangle(bounds,{fillColor:'#8dc63f',fillOpacity:0.05,color:'#8dc63f',weight:2,dashArray:'8,5'}).addTo(map);}
+
+function addMarkers(){
+  listings.forEach(function(l){
+    if(!l.lat||!l.lng)return;
+    var m=L.marker([l.lat,l.lng],{icon:mkIcon(l,false)});
+    m.bindPopup(L.popup({closeButton:false,maxWidth:220}).setContent('<div class="pop-inner"><strong>'+esc(l.title)+'</strong><small>'+esc(l.address)+'</small><button class="pop-btn" onclick="openListing(\''+l.id+'\')">View Details &amp; Comments</button></div>'));
+    m.on('click',function(){resetIcons();if(markers[l.id])markers[l.id].setIcon(mkIcon(l,true));});
+    m.addTo(map);markers[l.id]=m;
+  });
+}
+function clearMarkers(){Object.values(markers).forEach(function(m){map.removeLayer(m);});markers={};}
+function mkIcon(l,sel){
+  var bg=sel?'#8dc63f':'#2d4a1e',fg=sel?'#2d4a1e':'#fbfdf8',bd=l.type==='residential'?'#5a8f3c':'#a8893a';
+  return L.divIcon({html:'<div style="background:'+bg+';color:'+fg+';padding:5px 10px;border-radius:18px;font-size:10px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:DM Sans,sans-serif;box-shadow:0 3px 10px rgba(30,48,18,.4);border:2px solid '+bd+';position:relative;">'+l.price+'<div style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:'+bg+';border-bottom:none;"></div></div>',className:'',iconAnchor:[46,34],popupAnchor:[0,-38]});
+}
+function resetIcons(){listings.forEach(function(l){if(markers[l.id])markers[l.id].setIcon(mkIcon(l,false));});}
+
+function renderSidebar(){
+  var filtered=listings.filter(function(l){return activeFilter==='all'||l.type===activeFilter;});
+  document.getElementById('countBadge').textContent=filtered.length+' listing'+(filtered.length!==1?'s':'');
+  document.getElementById('sidebarSub').textContent=filtered.length+' listings loaded';
+  var list=document.getElementById('sidebarList');list.innerHTML='';
+  if(!filtered.length){list.innerHTML='<div class="sidebar-error">No listings match this filter.</div>';return;}
+  listings.forEach(function(l){
+    var vis=activeFilter==='all'||l.type===activeFilter;
+    var el=document.createElement('div');
+    el.className='scard'+(l.id===activeId?' active':'')+(vis?'':' hidden');
+    el.dataset.id=l.id;
+    var imgH=l.img?'<img src="'+esc(l.img)+'" loading="lazy" alt="">':'<div class="no-img">🏡</div>';
+    var meta=l.type==='residential'?'<span>🛏 '+l.beds+'</span><span>🛁 '+l.baths+'</span><span>'+l.sqft+' sqft</span>':'<span>📐 '+l.sqft+' sqft</span>';
+    var cc=l.comments.length;
+    el.innerHTML='<div class="scard-img">'+imgH+'<span class="scard-badge '+(l.type==='residential'?'badge-res':'badge-com')+'">'+l.type+'</span><span class="scard-status st-'+l.status+'">'+l.status+'</span></div><div class="scard-body"><div class="scard-price">'+l.price+'</div><div class="scard-addr">'+esc(l.address)+'</div><div class="scard-meta">'+meta+'</div>'+(cc>0?'<div class="scard-comments">💬 '+cc+' comment'+(cc!==1?'s':'')+'</div>':'')+'</div>';
+    el.addEventListener('click',function(){openListing(l.id);});
+    list.appendChild(el);
+  });
+}
+
+function setFilter(type,btn){
+  activeFilter=type;
+  document.querySelectorAll('.fpill').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');
+  listings.forEach(function(l){var m=markers[l.id];if(!m)return;if(type==='all'||l.type===type)m.addTo(map);else map.removeLayer(m);});
+  renderSidebar();
+}
+
+function openListing(id){
+  activeId=id;var l=listings.find(function(x){return x.id===id;});if(!l)return;
+  document.querySelectorAll('.scard').forEach(function(c){c.classList.toggle('active',c.dataset.id===id);});
+  if(l.lat&&l.lng){map.flyTo([l.lat,l.lng],15,{duration:1});resetIcons();if(markers[id]){markers[id].setIcon(mkIcon(l,true));markers[id].openPopup();}}
+  var wrap=document.getElementById('panelImg');wrap.innerHTML='';
+  if(l.img){var img=document.createElement('img');img.src=l.img;img.alt=l.title;wrap.appendChild(img);}
+  else{var ph=document.createElement('div');ph.className='no-img-lg';ph.textContent='🏡';wrap.appendChild(ph);}
+  var ov=document.createElement('div');ov.className='panel-overlay';ov.innerHTML='<div class="panel-price">'+l.price+'</div>';wrap.appendChild(ov);
+  document.getElementById('pTitle').textContent=l.title;
+  document.getElementById('pAddr').textContent=l.address;
+  document.getElementById('pTags').innerHTML='<span class="ptag '+(l.type==='residential'?'res':'com')+'">'+cap(l.type)+'</span><span class="ptag '+l.status+'">'+cap(l.status)+'</span>'+(l.subType?'<span class="ptag">'+esc(l.subType)+'</span>':'')+(l.year!=='—'?'<span class="ptag">Built '+l.year+'</span>':'');
+  document.getElementById('pMLS').innerHTML='<div class="mls-strip">📋 MLS# <strong>'+esc(String(l.mlsId))+'</strong>'+(l.agentName?' · <strong>'+esc(l.agentName)+'</strong>':'')+'</div>';
+  document.getElementById('pGrid').innerHTML=deet('Price',l.price)+deet('Sq Ft',l.sqft)+(l.type==='residential'?deet('Beds',l.beds)+deet('Baths',l.baths):'')+deet('Year Built',l.year)+deet('Lot Size',l.lotSize||'—');
+  document.getElementById('pDesc').textContent=l.desc;
+  renderComments(l);
+  document.getElementById('detailPanel').classList.add('open');
+}
+function deet(l,v){return'<div class="deet"><label>'+l+'</label><span>'+v+'</span></div>';}
+function closePanel(){document.getElementById('detailPanel').classList.remove('open');activeId=null;resetIcons();if(map)map.closePopup();document.querySelectorAll('.scard').forEach(function(c){c.classList.remove('active');});}
+
+function renderComments(l){
+  document.getElementById('cCount').textContent=l.comments.length;
+  var list=document.getElementById('cList');
+  if(!l.comments.length){list.innerHTML='<div class="no-cmts">💬 No comments yet — be the first!</div>';return;}
+  list.innerHTML=l.comments.map(function(c,i){var col=c.color||avatarColors[i%avatarColors.length];return'<div class="cmt-item"><div class="cmt-head"><div class="cmt-av" style="background:'+col+'">'+esc(c.author.charAt(0).toUpperCase())+'</div><span class="cmt-name">'+esc(c.author)+'</span><span class="cmt-time">'+c.time+'</span><button class="cmt-del" onclick="delComment(\''+l.id+'\',\''+c.id+'\')">✕</button></div><div class="cmt-text">'+esc(c.text)+'</div></div>';}).join('');
+}
+function addComment(){
+  if(!activeId)return;
+  var l=listings.find(function(x){return x.id===activeId;});
+  var name=document.getElementById('cName').value.trim(),text=document.getElementById('cText').value.trim();
+  if(!name||!text){alert('Please enter your name and a comment.');return;}
+  l.comments.push({id:'c'+Date.now(),author:name,text:text,time:'Just now',color:avatarColors[l.comments.length%avatarColors.length]});
+  document.getElementById('cName').value='';document.getElementById('cText').value='';
+  renderComments(l);renderSidebar();
+}
+function delComment(lid,cid){var l=listings.find(function(x){return x.id===lid;});if(!l)return;l.comments=l.comments.filter(function(c){return c.id!==cid;});renderComments(l);renderSidebar();}
+
+var cities=[{name:'Houston, TX',sub:'Harris County'},{name:'Austin, TX',sub:'Travis County'},{name:'Dallas, TX',sub:'Dallas County'},{name:'Denver, CO',sub:'Denver County'},{name:'Phoenix, AZ',sub:'Maricopa County'},{name:'Nashville, TN',sub:'Davidson County'},{name:'Atlanta, GA',sub:'Fulton County'},{name:'Charlotte, NC',sub:'Mecklenburg County'},{name:'San Luis Obispo, CA',sub:'SLO County'},{name:'Los Angeles, CA',sub:'LA County'}];
+function setupSearch(){
+  var inp=document.getElementById('cityInput'),sugg=document.getElementById('topbarSugg');
+  inp.addEventListener('input',function(){var v=inp.value.trim().toLowerCase();if(!v){sugg.classList.remove('show');return;}var m=cities.filter(function(c){return c.name.toLowerCase().indexOf(v)>-1;});if(!m.length){sugg.classList.remove('show');return;}sugg.innerHTML=m.slice(0,5).map(function(c){return'<div class="sugg-item" onclick="pickCity(\''+c.name+'\')">📍 '+c.name+' <small>'+c.sub+'</small></div>';}).join('');sugg.classList.add('show');});
+  document.addEventListener('click',function(e){if(!e.target.closest('.topbar-search'))sugg.classList.remove('show');});
+}
+function pickCity(name){document.getElementById('cityInput').value=name;document.getElementById('topbarSugg').classList.remove('show');searchCity();}
+
+function mapListing(p){
+  var prop=p.property||{},addr=p.address||{},geo=p.geo||{},agent=p.agent||{};
+  var st=(prop.subType||prop.type||'').toLowerCase();
+  var type=st.indexOf('commercial')>-1?'commercial':'residential';
+  var rs=(p.mls&&p.mls.status)?p.mls.status.toLowerCase():'active';
+  var status=rs.indexOf('pend')>-1?'pending':rs.indexOf('clos')>-1?'closed':'active';
+  var fullAddr=[addr.streetNumber,addr.streetName,addr.city,addr.state,addr.postalCode].filter(Boolean).join(' ');
+  var photos=p.photos||[];
+  return{id:p.mlsId||String(Math.random()),mlsId:p.mlsId||'—',type,status,subType:prop.subType||prop.type||'Residential',rawPrice:p.listPrice||0,price:p.listPrice?'$'+Number(p.listPrice).toLocaleString():'Price N/A',title:prop.style||prop.subType||'Property',address:fullAddr||'Address unavailable',beds:prop.bedrooms||'—',baths:prop.bathsFull||'—',sqft:prop.area?Number(prop.area).toLocaleString():'—',year:prop.yearBuilt||'—',lotSize:prop.lotSize?prop.lotSize+' acres':'—',desc:p.remarks||'No description provided.',img:photos.length?photos[0]:null,lat:geo.lat||null,lng:geo.lng||null,agentName:agent.firstName?agent.firstName+' '+(agent.lastName||''):null,comments:[]};
+}
+
+function showSidebarLoading(){document.getElementById('sidebarList').innerHTML='<div class="sidebar-loading"><div class="spinner"></div><p>Loading MLS data…</p></div>';}
+function showToast(msg,loading){var t=document.getElementById('mapToast'),sp=document.getElementById('toastSpinner');document.getElementById('toastText').textContent=msg;sp.style.display=loading?'block':'none';t.classList.add('show');}
+function hideToast(){document.getElementById('mapToast').classList.remove('show');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+window.addEventListener('resize',function(){if(map)setTimeout(function(){map.invalidateSize();},100);});
+window.addEventListener('load',function(){if(map)setTimeout(function(){map.invalidateSize();},200);});
+</script>
+</body>
+</html>
