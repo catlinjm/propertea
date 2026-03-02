@@ -38,25 +38,29 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;ali
 .nav-cta:hover{background:var(--lime-dark);color:var(--white)}
 
 /* HERO */
-.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;position:relative;overflow:hidden;padding-top:64px}
-.hero-left{background:var(--forest);display:flex;flex-direction:column;justify-content:center;padding:80px 56px 80px 48px;position:relative;z-index:2}
-.hero-left::after{content:'';position:absolute;top:0;right:-1px;bottom:0;width:60px;background:var(--forest);clip-path:polygon(0 0,0 100%,100% 100%);z-index:3}
-.hero-left::before{content:'';position:absolute;inset:0;z-index:0;background:url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%238dc63f' fill-opacity='0.04'%3E%3Cpath d='M40 0C40 0 20 20 20 40C20 60 40 80 40 80C40 80 60 60 60 40C60 20 40 0 40 0Z'/%3E%3C/g%3E%3C/svg%3E")}
-.hero-right{position:relative;overflow:hidden;background:var(--forest-mid)}
-.hero-right-img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(0.75) brightness(0.55)}
-.hero-right-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(30,48,18,0.5) 0%,rgba(58,102,40,0.15) 100%)}
-.hero-tag{display:inline-flex;align-items:center;gap:7px;background:rgba(141,198,63,0.12);border:1px solid rgba(141,198,63,0.28);padding:5px 14px;border-radius:20px;font-size:0.7rem;color:var(--lime);letter-spacing:0.1em;text-transform:uppercase;font-weight:600;margin-bottom:24px;width:fit-content;position:relative;z-index:2;animation:slideIn 0.5s ease both}
-.hero-headline{font-family:'Playfair Display',serif;font-size:clamp(2.4rem,4.2vw,3.9rem);font-weight:900;color:var(--white);line-height:1.08;letter-spacing:-0.02em;margin-bottom:20px;position:relative;z-index:2;animation:slideIn 0.5s 0.08s ease both}
+.hero{position:relative;min-height:calc(100vh - 64px);overflow:hidden}
+.hero-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(10,25,6,0.30) 0%,rgba(10,25,6,0.52) 45%,rgba(10,25,6,0.78) 100%)}
+.callouts{position:absolute;inset:0;pointer-events:none}
+.pin{position:absolute;display:flex;align-items:center;gap:7px;opacity:0;animation:pinIn 0.5s ease forwards;pointer-events:none}
+@keyframes pinIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.pin-dot{width:9px;height:9px;border-radius:50%;background:var(--lime);flex-shrink:0;box-shadow:0 0 0 3px rgba(141,198,63,0.3)}
+.pin-label{background:rgba(251,253,248,0.93);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:8px;padding:6px 10px;font-size:0.67rem;font-weight:500;color:var(--ink);font-family:'DM Sans',sans-serif;line-height:1.4;max-width:182px;box-shadow:0 2px 14px rgba(0,0,0,0.22);border:1px solid rgba(141,198,63,0.22)}
+.pin-label small{color:var(--slate);font-size:0.61rem;display:block;margin-top:1px}
+.pin.r{flex-direction:row-reverse}
+.hero-content{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 24px;z-index:10}
+.hero-tag{display:inline-flex;align-items:center;gap:7px;background:rgba(141,198,63,0.13);border:1px solid rgba(141,198,63,0.35);padding:5px 16px;border-radius:20px;font-size:0.72rem;color:var(--lime);letter-spacing:0.1em;text-transform:uppercase;font-weight:600;margin-bottom:18px}
+.hero-headline{font-family:'Playfair Display',serif;font-size:clamp(2rem,5vw,3.6rem);font-weight:900;color:var(--white);line-height:1.08;letter-spacing:-0.02em;margin-bottom:30px;text-shadow:0 2px 24px rgba(0,0,0,0.38)}
 .hero-headline em{color:var(--lime);font-style:italic;font-weight:700}
-.hero-sub{font-size:1rem;color:rgba(245,253,248,0.5);line-height:1.7;margin-bottom:40px;max-width:420px;position:relative;z-index:2;animation:slideIn 0.5s 0.16s ease both}
+.hero-sub{font-size:0.8rem;color:rgba(245,253,248,0.42);margin-top:16px;letter-spacing:0.04em}
 @keyframes slideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 
 /* SEARCH */
-.search-block{position:relative;z-index:2;animation:slideIn 0.5s 0.24s ease both}
-.search-bar{display:flex;background:var(--white);border-radius:50px;box-shadow:0 8px 40px rgba(0,0,0,0.3),0 0 0 1px rgba(141,198,63,0.2);overflow:visible;position:relative;transition:box-shadow 0.2s}
-.search-bar:focus-within{box-shadow:0 8px 40px rgba(0,0,0,0.3),0 0 0 2.5px var(--lime)}
+.search-block{position:relative;z-index:2;width:100%;max-width:560px}
+.search-bar{display:flex;background:var(--white);border-radius:50px;box-shadow:0 8px 48px rgba(0,0,0,0.45),0 0 0 1.5px rgba(141,198,63,0.2);overflow:hidden;transition:box-shadow 0.2s}
+.search-bar:focus-within{box-shadow:0 8px 48px rgba(0,0,0,0.45),0 0 0 2.5px var(--lime)}
 .search-icon{padding:0 14px 0 22px;color:var(--slate);font-size:1rem;display:flex;align-items:center;flex-shrink:0}
-.search-input{flex:1;padding:17px 8px;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:0.95rem;color:var(--ink);background:transparent}
+.search-input{flex:1;padding:17px 8px;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:0.95rem;color:var(--ink);background:transparent;min-width:0}
 .search-input::placeholder{color:#b0baa8}
 .search-btn{margin:5px;padding:12px 26px;background:var(--forest);color:var(--white);border:none;border-radius:40px;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap}
 .search-btn:hover{background:var(--lime);color:var(--forest)}
@@ -66,13 +70,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;ali
 .sugg-item:hover{background:var(--paper)}
 .sugg-item small{color:var(--slate);font-size:0.72rem;margin-left:auto}
 .search-wrap-inner{position:relative}
-
-/* FLOAT CARD */
-.hero-float-card{position:absolute;bottom:48px;left:40px;z-index:10;background:rgba(251,253,248,0.96);backdrop-filter:blur(10px);border-radius:14px;padding:18px 22px;box-shadow:var(--shadow-lg);border:1px solid rgba(141,198,63,0.2);animation:slideIn 0.6s 0.4s ease both;max-width:240px}
-.float-card-label{font-size:0.68rem;color:var(--slate);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;font-weight:600}
-.float-card-stat{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.82rem}
-.float-card-stat:last-child{margin-bottom:0}
-.float-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+@media(max-width:600px){.callouts{display:none}}
 
 /* STATS BAND */
 .stats-band{background:var(--forest);display:grid;grid-template-columns:repeat(4,1fr);border-top:2px solid rgba(141,198,63,0.2)}
@@ -141,10 +139,45 @@ footer strong{color:var(--lime)}
 </nav>
 
 <section class="hero">
-  <div class="hero-left">
+  <img class="hero-bg" src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80" alt="Charming home">
+  <div class="hero-overlay"></div>
+  <div class="callouts">
+    <div class="pin" style="top:7%;left:17%;animation-delay:2.5s">
+      <div class="pin-dot"></div>
+      <div class="pin-label">Chimney: "vintage patina"<small>zero maintenance since 1987</small></div>
+    </div>
+    <div class="pin r" style="top:14%;right:18%;animation-delay:4.7s">
+      <div class="pin-dot"></div>
+      <div class="pin-label">3 roof tiles replaced in '09<small>wrong tiles.</small></div>
+    </div>
+    <div class="pin" style="top:40%;left:5%;animation-delay:6.9s">
+      <div class="pin-dot"></div>
+      <div class="pin-label">Foundation "actively settling"<small>per 2018 inspector</small></div>
+    </div>
+    <div class="pin r" style="top:27%;right:8%;animation-delay:9.1s">
+      <div class="pin-dot"></div>
+      <div class="pin-label">"Cosy reading nook"<small>load-bearing wall — cannot touch</small></div>
+    </div>
+    <div class="pin" style="top:56%;left:20%;animation-delay:11.3s">
+      <div class="pin-dot"></div>
+      <div class="pin-label">HOA Bylaw 7.4.2b<small>fence pickets must be ≤47mm apart</small></div>
+    </div>
+    <div class="pin r" style="top:61%;right:10%;animation-delay:13.5s">
+      <div class="pin-dot"></div>
+      <div class="pin-label">Bagpipe enthusiast next door<small>daily. enthusiastically.</small></div>
+    </div>
+    <div class="pin" style="bottom:24%;left:31%;animation-delay:15.7s">
+      <div class="pin-dot"></div>
+      <div class="pin-label">Seller "highly motivated"<small>to leave. quickly.</small></div>
+    </div>
+    <div class="pin r" style="bottom:19%;right:21%;animation-delay:17.9s">
+      <div class="pin-dot"></div>
+      <div class="pin-label">Garden gnomes at purchase: 3<small>current count: 11</small></div>
+    </div>
+  </div>
+  <div class="hero-content">
     <div class="hero-tag">🍃 Live MLS · Updated Daily</div>
-    <h1 class="hero-headline">Where neighbours<br>spill the <em>tea</em><br>on every listing.</h1>
-    <p class="hero-sub">Real MLS data, real community gossip. Search any city and see what people are actually saying about the homes in your neighbourhood.</p>
+    <h1 class="hero-headline">Where neighbours<br>spill the <em>tea.</em></h1>
     <div class="search-block">
       <div class="search-wrap-inner">
         <div class="search-bar">
@@ -155,14 +188,7 @@ footer strong{color:var(--lime)}
         <div class="search-suggestions" id="heroSugg"></div>
       </div>
     </div>
-  </div>
-  <div class="hero-right">
-    <img class="hero-right-img" src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&q=80" alt="Beautiful home">
-    <div class="hero-right-overlay"></div>
-    <div class="hero-float-card" id="floatCard">
-      <div class="float-card-label">🔥 Most talked-about right now</div>
-      <div id="floatCardItems"><div style="font-size:0.75rem;color:var(--slate)">Loading…</div></div>
-    </div>
+    <p class="hero-sub">Real listings. Real gossip.</p>
   </div>
 </section>
 
@@ -235,13 +261,13 @@ function loadListings(){
   .then(function(data){
     listings=data.map(mapListing);
     listings.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
-    renderFeatured();updateStats();updateFloatCard();
+    renderFeatured();updateStats();
   })
   .catch(function(){
     // Network blocked (preview) — use fallback data
     listings=FALLBACK_LISTINGS.slice();
     listings.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
-    renderFeatured();updateStats();updateFloatCard();
+    renderFeatured();updateStats();
   });
 }
 
