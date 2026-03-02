@@ -153,7 +153,7 @@ html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden;font-family:
 .panel{
   position:absolute;right:0;top:0;bottom:0;
   /* Narrower on mobile */
-  width:min(360px,100%);
+  width:min(480px,100%);
   background:var(--white);
   box-shadow:-6px 0 32px rgba(30,48,18,0.2);
   display:flex;flex-direction:column;
@@ -163,18 +163,23 @@ html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden;font-family:
   z-index:600;overflow:hidden;
 }
 .panel.open{transform:translateX(0)}
-.panel-close{
-  position:absolute;top:10px;right:10px;
-  width:28px;height:28px;border-radius:50%;
-  border:1px solid rgba(255,255,255,0.4);background:rgba(30,48,18,0.6);
+.panel-actions{
+  position:absolute;top:12px;left:12px;right:12px;
+  display:flex;justify-content:space-between;align-items:center;
+  z-index:3;pointer-events:none;
+}
+.panel-action-btn{
+  width:34px;height:34px;border-radius:50%;
+  background:rgba(30,48,18,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.35);
   color:var(--white);cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:0.82rem;
-  transition:all 0.2s;z-index:2;
-  /* Wix: explicit clickability */
-  pointer-events:auto;position:absolute;
+  transition:all 0.2s;pointer-events:auto;
+  appearance:none;-webkit-appearance:none;
 }
-.panel-close:hover{background:var(--forest)}
-.p-img{height:175px;flex-shrink:0;position:relative;overflow:hidden;background:var(--cream)}
+.panel-action-btn:hover{background:rgba(30,48,18,0.85)}
+.p-overlay-addr{font-size:0.68rem;color:rgba(255,255,255,0.8);margin-top:2px}
+.p-img{height:240px;flex-shrink:0;position:relative;overflow:hidden;background:var(--cream)}
 .p-img img{width:100%;height:100%;object-fit:cover;display:block}
 .p-img .no-img-lg{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;opacity:0.22}
 .p-overlay{position:absolute;bottom:0;left:0;right:0;padding:12px 15px;background:linear-gradient(transparent,rgba(20,40,12,0.78))}
@@ -198,9 +203,25 @@ html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden;font-family:
 .deet span{font-size:0.8rem;font-weight:600;color:var(--ink)}
 .p-desc{font-size:0.73rem;color:var(--slate);line-height:1.58;margin-bottom:14px}
 
-/* Comments */
-.cmts{border-top:1px solid var(--cream);padding-top:14px}
-.cmts-title{font-family:'Playfair Display',serif;font-size:0.88rem;font-weight:600;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:5px}
+/* Comments footer */
+.cmts-footer{
+  flex-shrink:0;overflow:hidden;
+  max-height:52px;
+  transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+  border-top:2px solid var(--cream);background:var(--white);
+}
+.cmts-footer.expanded{max-height:55vh}
+.cmts-header{
+  display:flex;align-items:center;gap:6px;
+  padding:14px 16px;cursor:pointer;
+  font-family:'Playfair Display',serif;font-size:0.88rem;font-weight:600;color:var(--ink);
+  user-select:none;-webkit-user-select:none;
+}
+.cmts-chevron{margin-left:auto;font-size:0.75rem;transition:transform 0.35s;color:var(--slate)}
+.cmts-footer.expanded .cmts-chevron{transform:rotate(180deg)}
+.cmts-inner{overflow-y:auto;padding:0 16px 16px;-webkit-overflow-scrolling:touch}
+.cmts-inner::-webkit-scrollbar{width:3px}
+.cmts-inner::-webkit-scrollbar-thumb{background:var(--forest-light);border-radius:2px}
 .cmt-cnt{background:var(--lime);color:var(--forest);width:17px;height:17px;border-radius:50%;font-family:'DM Sans',sans-serif;font-size:0.61rem;font-weight:700;display:flex;align-items:center;justify-content:center}
 .cf{margin-bottom:12px}
 .ci,.ca{width:100%;border:1px solid var(--cream);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.74rem;color:var(--ink);background:var(--paper);transition:border-color 0.2s;display:block}
@@ -293,9 +314,15 @@ html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden;font-family:
 
     <!-- Detail panel -->
     <div class="panel" id="panel">
-      <button class="panel-close" id="panelClose">✕</button>
       <div class="p-img" id="pImg">
-        <div class="p-overlay"><div class="p-price" id="pPrice"></div></div>
+        <div class="panel-actions">
+          <button class="panel-action-btn" id="panelClose">✕</button>
+          <button class="panel-action-btn" id="shareBtn">🔗</button>
+        </div>
+        <div class="p-overlay">
+          <div class="p-price" id="pPrice"></div>
+          <div class="p-overlay-addr" id="pOverlayAddr"></div>
+        </div>
       </div>
       <div class="p-body">
         <div class="p-title" id="pTitle"></div>
@@ -304,14 +331,19 @@ html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden;font-family:
         <div id="pMLS"></div>
         <div class="dg" id="pGrid"></div>
         <div class="p-desc" id="pDesc"></div>
-        <div class="cmts">
-          <div class="cmts-title">Comments <span class="cmt-cnt" id="cCount">0</span></div>
+      </div>
+      <div class="cmts-footer" id="cmtsFooter">
+        <div class="cmts-header" id="cmtsHeader">
+          💬 Neighbourhood Tea <span class="cmt-cnt" id="cCount">0</span>
+          <span class="cmts-chevron">▲</span>
+        </div>
+        <div class="cmts-inner">
+          <div class="cl" id="cList"></div>
           <div class="cf">
             <input type="text" class="ci" id="cName" placeholder="Your name">
             <textarea class="ca" id="cText" placeholder="What are people saying?"></textarea>
-            <button class="cs" id="submitBtn">Post Comment</button>
+            <button class="cs" id="submitBtn">Spill the Tea ☕</button>
           </div>
-          <div class="cl" id="cList"></div>
         </div>
       </div>
     </div>
@@ -529,10 +561,14 @@ function openListing(id){
     resetIcons();
     if(markers[id]){markers[id].setIcon(mkIcon(l,true));markers[id].openPopup();}
   }
-  var w=document.getElementById('pImg');w.innerHTML='';
-  if(l.img){var img=document.createElement('img');img.src=l.img;img.alt=l.title;w.appendChild(img);}
-  else{var ph=document.createElement('div');ph.className='no-img-lg';ph.textContent='🏡';w.appendChild(ph);}
-  var ov=document.createElement('div');ov.className='p-overlay';ov.innerHTML='<div class="p-price">'+l.price+'</div>';w.appendChild(ov);
+  var w=document.getElementById('pImg');
+  Array.from(w.children).forEach(function(child){
+    if(child.tagName==='IMG'||child.classList.contains('no-img-lg'))w.removeChild(child);
+  });
+  if(l.img){var img=document.createElement('img');img.src=l.img;img.alt=l.title;w.insertBefore(img,w.firstChild);}
+  else{var ph=document.createElement('div');ph.className='no-img-lg';ph.textContent='🏡';w.insertBefore(ph,w.firstChild);}
+  document.getElementById('pPrice').textContent=l.price;
+  document.getElementById('pOverlayAddr').textContent=l.address;
   document.getElementById('pTitle').textContent=l.title;
   document.getElementById('pAddr').textContent=l.address;
   document.getElementById('pTags').innerHTML=
@@ -544,6 +580,7 @@ function openListing(id){
   document.getElementById('pGrid').innerHTML=d('Price',l.price)+d('Sq Ft',l.sqft)+(l.type==='residential'?d('Beds',l.beds)+d('Baths',l.baths):'')+d('Year',l.year)+d('Lot',l.lotSize||'—');
   document.getElementById('pDesc').textContent=l.desc;
   renderComments(l);
+  document.getElementById('cmtsFooter').classList.toggle('expanded',l.comments.length>0);
   document.getElementById('panel').classList.add('open');
 }
 function d(l,v){return'<div class="deet"><label>'+l+'</label><span>'+v+'</span></div>';}
@@ -614,6 +651,23 @@ function setupToolbar(){
 
   // Panel close
   document.getElementById('panelClose').addEventListener('click',function(){closePanel();});
+
+  // Share button — copies deep-link URL to clipboard
+  document.getElementById('shareBtn').addEventListener('click',function(){
+    var url='https://www.propertea.me/map?id='+(activeId||'');
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(function(){
+        showToast('🔗 Link copied!',false);setTimeout(hideToast,2500);
+      }).catch(function(){showToast('🔗 '+url,false);setTimeout(hideToast,3500);});
+    } else {
+      showToast('🔗 '+url,false);setTimeout(hideToast,3500);
+    }
+  });
+
+  // Comments footer toggle
+  document.getElementById('cmtsHeader').addEventListener('click',function(){
+    document.getElementById('cmtsFooter').classList.toggle('expanded');
+  });
 
   // Submit comment button
   document.getElementById('submitBtn').addEventListener('click',function(){postComment();});
