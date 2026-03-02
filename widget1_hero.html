@@ -154,7 +154,7 @@ function doSearch(){
   // Store city so map widget picks it up on arrival
   try{sessionStorage.setItem('propertea_city',v);}catch(e){}
   // Navigate to map page
-  window.parent.location.href = 'https://www.propertea.me/map?id=' + encodeURIComponent(l.id);
+  window.parent.location.href = 'https://www.propertea.me/map?city=' + encodeURIComponent(v);
 }
 </script>
 </body>
