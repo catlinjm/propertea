@@ -343,15 +343,32 @@ var listings=[],activeFilter='all',activeId=null,markers={},boundaryLayer=null,m
 window.addEventListener('load',function(){
   initMap();
   setupToolbar();
-  // Check if search widget sent a city via sessionStorage
-  var storedCity='';
-  try{storedCity=sessionStorage.getItem('propertea_city')||'';}catch(e){}
-  if(storedCity){
-    document.getElementById('cityInput').value=storedCity;
+
+  // Read ?city= and ?id= from the parent page URL
+  var cityParam='',idParam='';
+  try{
+    var topParams=new URLSearchParams(window.top.location.search);
+    cityParam=topParams.get('city')||'';
+    idParam=topParams.get('id')||'';
+  }catch(e){
+    try{
+      var params=new URLSearchParams(window.location.search);
+      cityParam=params.get('city')||'';
+      idParam=params.get('id')||'';
+    }catch(e2){}
+  }
+
+  if(cityParam){
+    document.getElementById('cityInput').value=cityParam;
     loadListings(function(){setTimeout(doSearch,400);});
+  } else if(idParam){
+    loadListings(function(){
+      setTimeout(function(){openListing(decodeURIComponent(idParam));},500);
+    });
   } else {
     loadListings(null);
   }
+
   // Listen for postMessage from other widgets on same Wix page
   window.addEventListener('message',function(e){
     if(e.data&&e.data.type==='propertea-search'&&e.data.city){
