@@ -231,22 +231,8 @@ footer strong{color:var(--lime)}
 </footer>
 
 <script>
-var SR_USER='simplyrets',SR_PASS='simplyrets',SR_LIMIT=25;
+var API='http://localhost:3000/api/v1';
 var avatarColors=['#3d6628','#8dc63f','#5a8f3c','#a8893a','#2d4a1e','#6aab28'];
-var seedComments=[
-  [{id:'s1',author:'Taylor R.',text:'Toured this Saturday — kitchen is stunning. Price feels fair for the area.',time:'1 day ago',color:'#3d6628'},
-   {id:'s2',author:'Agent Chen',text:'Multiple offers expected by end of week. Act fast!',time:'3 hours ago',color:'#8dc63f'},
-   {id:'s3',author:'Denise M.',text:'Is the school district Westwood? That would be a game changer.',time:'1 hour ago',color:'#5a8f3c'}],
-  [{id:'s4',author:'Marcus D.',text:'Great cap rate. Has anyone run the rental yield numbers?',time:'2 days ago',color:'#5a8f3c'},
-   {id:'s5',author:'Karen L.',text:'My broker says similar units going 8% above ask. Move fast.',time:'6 hours ago',color:'#a8893a'}],
-  [{id:'s6',author:'Priya N.',text:'Love the location! Is parking included?',time:'5 hours ago',color:'#a8893a'},
-   {id:'s7',author:'Lisa W.',text:'Yes — two covered spots per the disclosure docs.',time:'2 hours ago',color:'#3d6628'},
-   {id:'s8',author:'Bob K.',text:'Submitted an offer yesterday 🤞 fingers crossed!',time:'45 mins ago',color:'#8dc63f'},
-   {id:'s9',author:'Rahul P.',text:'Good luck Bob! We loved it too but commute was a dealbreaker.',time:'30 mins ago',color:'#5a8f3c'}],
-  [{id:'s10',author:'Sandra T.',text:'Open house Sunday 1–4pm! Who else is going?',time:'3 days ago',color:'#a8893a'},
-   {id:'s11',author:'Chris H.',text:'We are! First time buyers, bit nervous 😅',time:'2 days ago',color:'#3d6628'}],
-  [{id:'s12',author:'Olivia J.',text:'That backyard oak tree alone is worth the price 😍',time:'4 days ago',color:'#8dc63f'}],
-];
 
 // Offline fallback listings for preview/development
 var FALLBACK_LISTINGS=[
@@ -266,56 +252,37 @@ document.addEventListener('DOMContentLoaded',function(){
 
 function loadListings(){
   showSkeletons();
-  var auth='Basic '+btoa(SR_USER+':'+SR_PASS);
-  fetch('https://api.simplyrets.com/properties?limit='+SR_LIMIT+'&status=Active',{headers:{'Authorization':auth,'Accept':'application/json'}})
+  fetch(API+'/listings?limit=25&status=Active')
   .then(function(r){if(!r.ok) throw new Error(r.status);return r.json();})
   .then(function(data){
-    listings=data.map(mapListing);
-    listings.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
+    listings=data;
     renderFeatured();updateStats();
   })
   .catch(function(){
     // Network blocked (preview) — use fallback data
     listings=FALLBACK_LISTINGS.slice();
-    listings.forEach(function(l,i){if(seedComments[i])l.comments=seedComments[i];});
     renderFeatured();updateStats();
   });
 }
 
-function mapListing(p){
-  var prop=p.property||{},addr=p.address||{},geo=p.geo||{},agent=p.agent||{};
-  var st=(prop.subType||prop.type||'').toLowerCase();
-  var type=st.indexOf('commercial')>-1?'commercial':'residential';
-  var rs=(p.mls&&p.mls.status)?p.mls.status.toLowerCase():'active';
-  var status=rs.indexOf('pend')>-1?'pending':rs.indexOf('clos')>-1?'closed':'active';
-  var fullAddr=[addr.streetNumber,addr.streetName,addr.city,addr.state,addr.postalCode].filter(Boolean).join(' ');
-  var photos=p.photos||[];
-  return{id:p.mlsId||String(Math.random()),mlsId:p.mlsId||'—',type,status,subType:prop.subType||prop.type||'Residential',rawPrice:p.listPrice||0,price:p.listPrice?'$'+Number(p.listPrice).toLocaleString():'Price N/A',title:prop.style||prop.subType||'Property',address:fullAddr||'Address unavailable',beds:prop.bedrooms||'—',baths:prop.bathsFull||'—',sqft:prop.area?Number(prop.area).toLocaleString():'—',year:prop.yearBuilt||'—',desc:p.remarks||'No description provided.',img:photos.length?photos[0]:null,lat:geo.lat||null,lng:geo.lng||null,agentName:agent.firstName?agent.firstName+' '+(agent.lastName||''):null,comments:[]};
-}
 
 function renderFeatured(){
   var grid=document.getElementById('featGrid');grid.innerHTML='';
-  var sorted=listings.slice().sort(function(a,b){return b.comments.length-a.comments.length;}).slice(0,6);
+  var sorted=listings.slice().sort(function(a,b){return(b.commentCount||0)-(a.commentCount||0);}).slice(0,6);
   sorted.forEach(function(l){
     var card=document.createElement('a');card.className='feat-card';card.href='map.html?id='+encodeURIComponent(l.id);
     var imgHtml=l.img?'<img src="'+esc(l.img)+'" loading="lazy" alt="">':'<div class="no-img">🏡</div>';
-    var cc=l.comments.length,latest=l.comments[l.comments.length-1];
-    var strip='';
-    if(latest){var col=latest.color||avatarColors[0];strip='<div class="comment-strip"><div class="comment-strip-head"><div class="cstrip-avatar" style="background:'+col+'">'+esc(latest.author.charAt(0))+'</div><span class="cstrip-name">'+esc(latest.author)+'</span><span class="cstrip-time">'+latest.time+'</span></div><div class="cstrip-text">'+esc(latest.text)+'</div>'+(cc>1?'<div class="cstrip-count">+ '+(cc-1)+' more comment'+(cc-1!==1?'s':'')+'</div>':'')+'</div>';}
-    card.innerHTML='<div class="card-img">'+imgHtml+'<span class="card-type '+l.type+'">'+l.type+'</span><span class="card-status-pill '+l.status+'">'+l.status+'</span>'+(cc>0?'<div class="hot-badge">🔥 '+cc+' comment'+(cc!==1?'s':'')+'</div>':'')+'</div><div class="card-body"><div class="card-price">'+l.price+'</div><div class="card-addr">'+esc(l.address)+'</div><div class="card-meta">'+(l.beds!=='—'?'<span>🛏 '+l.beds+'</span>':'')+(l.baths!=='—'?'<span>🛁 '+l.baths+'</span>':'')+'<span>📐 '+l.sqft+'</span></div>'+strip+'</div>';
+    var cc=l.commentCount||0;
+    card.innerHTML='<div class="card-img">'+imgHtml+'<span class="card-type '+l.type+'">'+l.type+'</span><span class="card-status-pill '+l.status+'">'+l.status+'</span>'+(cc>0?'<div class="hot-badge">🔥 '+cc+' comment'+(cc!==1?'s':'')+'</div>':'')+'</div><div class="card-body"><div class="card-price">'+l.price+'</div><div class="card-addr">'+esc(l.address)+'</div><div class="card-meta">'+(l.beds!=='—'?'<span>🛏 '+l.beds+'</span>':'')+(l.baths!=='—'?'<span>🛁 '+l.baths+'</span>':'')+'<span>📐 '+l.sqft+'</span></div></div>';
     grid.appendChild(card);
   });
 }
 
-function updateFloatCard(){
-  var top3=listings.slice().sort(function(a,b){return b.comments.length-a.comments.length;}).slice(0,3);
-  document.getElementById('floatCardItems').innerHTML=top3.map(function(l){return '<div class="float-card-stat"><div class="float-dot" style="background:'+(l.type==='residential'?'#3d6628':'#a8893a')+'"></div><span style="font-size:0.78rem;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l.price)+'</span><span style="font-size:0.7rem;color:var(--lime-dark);font-weight:700;flex-shrink:0">💬 '+l.comments.length+'</span></div>';}).join('')||'<div style="font-size:0.75rem;color:var(--slate)">No data yet</div>';
-}
 
 function updateStats(){
-  var totalC=listings.reduce(function(s,l){return s+l.comments.length;},0);
+  var totalC=listings.reduce(function(s,l){return s+(l.commentCount||0);},0);
   var weekly=totalC+Math.floor(listings.length*3.7);
-  var hot=listings.filter(function(l){return l.comments.length>0;}).length;
+  var hot=listings.filter(function(l){return(l.commentCount||0)>0;}).length;
   var nosy=40+Math.floor(listings.length*2.3)+Math.floor(Math.random()*14);
   var tea=weekly*4+listings.length*7;
   animCount('sComments',weekly);animCount('sHot',hot);animCount('sNosy',nosy);animCount('sTea',tea);

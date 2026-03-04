@@ -358,15 +358,8 @@ html,body{height:100%;width:100%;margin:0;padding:0;overflow:hidden;font-family:
 </div>
 
 <script>
-var SR_USER='simplyrets',SR_PASS='simplyrets',SR_LIMIT=25;
+var API='http://localhost:3000/api/v1';
 var AC=['#3d6628','#8dc63f','#5a8f3c','#a8893a','#2d4a1e','#6aab28'];
-var SC=[
-  [{id:'s1',author:'Taylor R.',text:'Toured Saturday — kitchen is stunning. Price feels fair.',time:'1 day ago',color:'#3d6628'},{id:'s2',author:'Agent Chen',text:'Multiple offers expected end of week. Act fast!',time:'3 hrs ago',color:'#8dc63f'},{id:'s3',author:'Denise M.',text:'Is the school district Westwood? Changes everything.',time:'1 hr ago',color:'#5a8f3c'}],
-  [{id:'s4',author:'Marcus D.',text:'Great cap rate. Anyone run rental yield numbers?',time:'2 days ago',color:'#5a8f3c'},{id:'s5',author:'Karen L.',text:'Similar units 8% above ask per my broker.',time:'6 hrs ago',color:'#a8893a'}],
-  [{id:'s6',author:'Priya N.',text:'Love the location! Parking included?',time:'5 hrs ago',color:'#a8893a'},{id:'s7',author:'Lisa W.',text:'Yes — two covered spots per disclosure.',time:'2 hrs ago',color:'#3d6628'},{id:'s8',author:'Bob K.',text:'Submitted an offer yesterday 🤞',time:'45 mins ago',color:'#8dc63f'},{id:'s9',author:'Rahul P.',text:'Good luck Bob! Loved it too but commute killed it.',time:'30 mins ago',color:'#5a8f3c'}],
-  [{id:'s10',author:'Sandra T.',text:'Open house Sunday 1–4pm! Who else?',time:'3 days ago',color:'#a8893a'},{id:'s11',author:'Chris H.',text:'We are! First time buyers 😅',time:'2 days ago',color:'#3d6628'}],
-  [{id:'s12',author:'Olivia J.',text:'That oak tree alone is worth the asking price 😍',time:'4 days ago',color:'#8dc63f'}],
-];
 var FB=[
   {id:'f1',type:'residential',status:'active',price:'$485,000',rawPrice:485000,title:'Colonial Revival',address:'3379 Barranca St, Houston, TX',beds:3,baths:2,sqft:'1,735',year:1998,img:null,lat:29.762,lng:-95.373,agentName:'Kristie Barry',mlsId:'SC26031025',subType:'Colonial',desc:'Beautifully maintained colonial. Hardwood floors, updated kitchen with granite counters.',comments:[],lotSize:'—'},
   {id:'f2',type:'residential',status:'active',price:'$3,100,000',rawPrice:3100000,title:'Modern Farmhouse',address:'1454 Hansen Ln, Houston, TX',beds:4,baths:5,sqft:'3,747',year:2019,img:null,lat:29.771,lng:-95.361,agentName:'Lori Lynch',mlsId:'SC28039398',subType:'Farmhouse',desc:'Stunning modern farmhouse with soaring ceilings, chef kitchen, resort-style pool.',comments:[],lotSize:'—'},
@@ -414,19 +407,14 @@ function initMap(){
 // ── LOAD ──
 function loadListings(cb){
   showSbLoading();
-  var auth='Basic '+btoa(SR_USER+':'+SR_PASS);
-  fetch('https://api.simplyrets.com/properties?limit='+SR_LIMIT+'&status=Active',{
-    headers:{'Authorization':auth,'Accept':'application/json'}
-  })
+  fetch(API+'/listings?limit=25&status=Active')
   .then(function(r){if(!r.ok)throw new Error();return r.json();})
   .then(function(data){
-    listings=data.map(mapL);
-    listings.forEach(function(l,i){if(SC[i])l.comments=SC[i];});
+    listings=data;
     finishLoad(cb);
   })
   .catch(function(){
     listings=FB.slice();
-    listings.forEach(function(l,i){if(SC[i])l.comments=SC[i];});
     finishLoad(cb);
     showToast('📡 Preview mode — sample data',false);setTimeout(hideToast,3500);
   });
@@ -455,12 +443,10 @@ function doSearch(){
     var d=0.22,bounds=L.latLngBounds([lat-d,lng-d],[lat+d,lng+d]);
     drawBoundary(bounds);
     showToast('Loading listings…',true);
-    var auth='Basic '+btoa(SR_USER+':'+SR_PASS);
-    fetch('https://api.simplyrets.com/properties?limit='+SR_LIMIT+'&status=Active',{headers:{'Authorization':auth,'Accept':'application/json'}})
+    fetch(API+'/listings?limit=25&status=Active')
     .then(function(r){if(!r.ok)throw new Error();return r.json();})
     .then(function(data){
-      listings=data.map(mapL);
-      listings.forEach(function(l,i){if(SC[i])l.comments=SC[i];});
+      listings=data;
       clearMarkers();addMarkers();renderSb();
       var hg=listings.filter(function(l){return l.lat&&l.lng;}).length;
       var isSandbox=hg>0&&listings[0]&&listings[0].lat&&Math.abs(listings[0].lat-lat)>3;
@@ -524,7 +510,7 @@ function renderSb(){
     el.dataset.id=l.id;
     var imgH=l.img?'<img src="'+esc(l.img)+'" loading="lazy" alt="">':'<div class="no-img">🏡</div>';
     var meta=l.type==='residential'?'<span>🛏 '+l.beds+'</span><span>🛁 '+l.baths+'</span><span>'+l.sqft+'</span>':'<span>📐 '+l.sqft+'</span>';
-    var cc=l.comments.length;
+    var cc=l.commentCount||(l.comments&&l.comments.length)||0;
     el.innerHTML='<div class="scard-img">'+imgH+'<span class="s-badge '+(l.type==='residential'?'res':'com')+'">'+l.type+'</span><span class="s-status st-'+l.status+'">'+l.status+'</span></div><div class="scard-body"><div class="sc-price">'+l.price+'</div><div class="sc-addr">'+esc(l.address)+'</div><div class="sc-meta">'+meta+'</div>'+(cc>0?'<div class="sc-cmts">💬 '+cc+' comment'+(cc!==1?'s':'')+'</div>':'')+'</div>';
     el.addEventListener('click',function(){openListing(l.id);});
     list.appendChild(el);
@@ -566,9 +552,18 @@ function openListing(id){
   document.getElementById('pMLS').innerHTML='<div class="mls-row">📋 <strong>'+esc(String(l.mlsId))+'</strong>'+(l.agentName?' · '+esc(l.agentName):'')+'</div>';
   document.getElementById('pGrid').innerHTML=d('Price',l.price)+d('Sq Ft',l.sqft)+(l.type==='residential'?d('Beds',l.beds)+d('Baths',l.baths):'')+d('Year',l.year)+d('Lot',l.lotSize||'—');
   document.getElementById('pDesc').textContent=l.desc;
+  // Lazy-load comments from backend
+  l.comments=l.comments||[];
   renderComments(l);
-  document.getElementById('cmtsFooter').classList.toggle('expanded',l.comments.length>0);
   document.getElementById('panel').classList.add('open');
+  fetch(API+'/listings/'+encodeURIComponent(l.mlsId)+'/comments')
+  .then(function(r){return r.json();})
+  .then(function(comments){
+    l.comments=comments;
+    renderComments(l);
+    document.getElementById('cmtsFooter').classList.toggle('expanded',comments.length>0);
+  })
+  .catch(function(){/* comments unavailable */});
 }
 function d(l,v){return'<div class="deet"><label>'+l+'</label><span>'+v+'</span></div>';}
 
@@ -580,27 +575,56 @@ function closePanel(){
 
 // ── COMMENTS ──
 function renderComments(l){
-  document.getElementById('cCount').textContent=l.comments.length;
+  var comments=l.comments||[];
+  document.getElementById('cCount').textContent=l.commentCount||(comments.length)||0;
   var list=document.getElementById('cList');
-  if(!l.comments.length){list.innerHTML='<div class="no-cmts">💬 No comments yet — be first!</div>';return;}
-  list.innerHTML=l.comments.map(function(c,i){
+  if(!comments.length){list.innerHTML='<div class="no-cmts">💬 No comments yet — be first!</div>';return;}
+  function renderComment(c,i,depth){
     var col=c.color||AC[i%AC.length];
-    return'<div class="ci-item"><div class="ci-head"><div class="ci-av" style="background:'+col+'">'+esc(c.author.charAt(0).toUpperCase())+'</div><span class="ci-name">'+esc(c.author)+'</span><span class="ci-time">'+c.time+'</span><button class="ci-del" onclick="delC(\''+l.id+'\',\''+c.id+'\')">✕</button></div><div class="ci-text">'+esc(c.text)+'</div></div>';
-  }).join('');
+    var indent=depth?'margin-left:'+(depth*14)+'px;':'';
+    var html='<div class="ci-item" style="'+indent+'"><div class="ci-head"><div class="ci-av" style="background:'+col+'">'+esc(c.author.charAt(0).toUpperCase())+'</div><span class="ci-name">'+esc(c.author)+'</span><span class="ci-time">'+c.time+'</span><button class="ci-del" onclick="delC(\''+l.id+'\',\''+c.id+'\')">✕</button></div><div class="ci-text">'+esc(c.text)+'</div></div>';
+    if(c.replies&&c.replies.length){c.replies.forEach(function(r,j){html+=renderComment(r,j,depth+1);});}
+    return html;
+  }
+  list.innerHTML=comments.map(function(c,i){return renderComment(c,i,0);}).join('');
 }
 function postComment(){
   if(!activeId)return;
-  var l=listings.find(function(x){return x.id===activeId;});if(!l)return;
+  var l=listings.find(function(x){return String(x.id)===String(activeId);});if(!l)return;
   var n=document.getElementById('cName').value.trim(),t=document.getElementById('cText').value.trim();
   if(!n||!t){alert('Please enter your name and a comment.');return;}
-  l.comments.push({id:'c'+Date.now(),author:n,text:t,time:'Just now',color:AC[l.comments.length%AC.length]});
-  document.getElementById('cName').value='';document.getElementById('cText').value='';
-  renderComments(l);renderSb();
+  var btn=document.getElementById('submitBtn');btn.disabled=true;
+  fetch(API+'/listings/'+encodeURIComponent(l.mlsId)+'/comments',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({author:n,text:t})
+  })
+  .then(function(r){if(!r.ok)throw new Error();return r.json();})
+  .then(function(comment){
+    l.comments=l.comments||[];
+    l.comments.push(comment);
+    l.commentCount=(l.commentCount||0)+1;
+    document.getElementById('cName').value='';document.getElementById('cText').value='';
+    renderComments(l);renderSb();
+    document.getElementById('cmtsFooter').classList.add('expanded');
+  })
+  .catch(function(){alert('Failed to post comment. Please try again.');})
+  .finally(function(){btn.disabled=false;});
 }
 function delC(lid,cid){
-  var l=listings.find(function(x){return x.id===lid;});if(!l)return;
-  l.comments=l.comments.filter(function(c){return c.id!==cid;});
+  var l=listings.find(function(x){return String(x.id)===String(lid);});if(!l)return;
+  // Optimistic local remove
+  l.comments=l.comments.filter(function(c){return String(c.id)!==String(cid);});
+  if(l.commentCount>0)l.commentCount--;
   renderComments(l);renderSb();
+  // Attempt server delete (requires auth token; silently no-ops for anonymous)
+  var token=localStorage.getItem('pt_token');
+  if(token){
+    fetch(API+'/listings/'+encodeURIComponent(l.mlsId)+'/comments/'+cid,{
+      method:'DELETE',
+      headers:{'Authorization':'Bearer '+token}
+    }).catch(function(){});
+  }
 }
 
 // ── TOOLBAR SETUP ──
@@ -661,27 +685,6 @@ function setupToolbar(){
   document.addEventListener('click',function(e){
     if(!e.target.closest('.toolbar-search'))sugg.classList.remove('show');
   });
-}
-
-// ── DATA MAP ──
-function mapL(p){
-  var prop=p.property||{},addr=p.address||{},geo=p.geo||{},agent=p.agent||{};
-  var st=(prop.subType||prop.type||'').toLowerCase();
-  var type=st.indexOf('commercial')>-1?'commercial':'residential';
-  var rs=(p.mls&&p.mls.status)?p.mls.status.toLowerCase():'active';
-  var status=rs.indexOf('pend')>-1?'pending':rs.indexOf('clos')>-1?'closed':'active';
-  var fullAddr=[addr.streetNumber,addr.streetName,addr.city,addr.state].filter(Boolean).join(' ');
-  return{id:p.mlsId||String(Math.random()),mlsId:p.mlsId||'—',type,status,
-    subType:prop.subType||prop.type||'Residential',rawPrice:p.listPrice||0,
-    price:p.listPrice?'$'+Number(p.listPrice).toLocaleString():'N/A',
-    title:prop.style||prop.subType||'Property',address:fullAddr||'Address unavailable',
-    beds:prop.bedrooms||'—',baths:prop.bathsFull||'—',
-    sqft:prop.area?Number(prop.area).toLocaleString():'—',
-    year:prop.yearBuilt||'—',lotSize:prop.lotSize?prop.lotSize+' acres':'—',
-    desc:p.remarks||'No description provided.',
-    img:(p.photos||[])[0]||null,lat:geo.lat||null,lng:geo.lng||null,
-    agentName:agent.firstName?agent.firstName+' '+(agent.lastName||''):null,
-    comments:[]};
 }
 
 // ── HELPERS ──
