@@ -556,12 +556,12 @@ function openListing(id){
   l.comments=l.comments||[];
   renderComments(l);
   document.getElementById('panel').classList.add('open');
+  document.getElementById('cmtsFooter').classList.add('expanded');
   fetch(API+'/listings/'+encodeURIComponent(l.mlsId)+'/comments')
   .then(function(r){return r.json();})
   .then(function(comments){
     l.comments=comments;
     renderComments(l);
-    document.getElementById('cmtsFooter').classList.toggle('expanded',comments.length>0);
   })
   .catch(function(){/* comments unavailable */});
 }
