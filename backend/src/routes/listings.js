@@ -4,58 +4,64 @@ const { pool } = require('../db');
 
 const router = express.Router();
 
-const ALLOWED_PARAMS = ['limit','status','type','minprice','maxprice','city','postalCode'];
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 function mapProperty(p) {
-  const prop = p.property || {};
-  const addr = p.address || {};
-  const geo  = p.geo || {};
-  const agent = p.agent || {};
-  const st = (prop.subType || prop.type || '').toLowerCase();
-  const type = st.indexOf('commercial') > -1 ? 'commercial' : 'residential';
-  const rs = (p.mls && p.mls.status) ? p.mls.status.toLowerCase() : 'active';
-  const status = rs.indexOf('pend') > -1 ? 'pending' : rs.indexOf('clos') > -1 ? 'closed' : 'active';
-  const fullAddr = [addr.streetNumber, addr.streetName, addr.city, addr.state, addr.postalCode].filter(Boolean).join(' ');
-  const photos = p.photos || [];
+  const loc   = p.location || {};
+  const addr  = loc.address || {};
+  const coord = loc.coordinate || {};
+  const desc  = p.description || {};
+  const flags = p.flags || {};
+  const agent = (p.source && p.source.agents && p.source.agents[0]) || {};
+  const photo = p.primary_photo ? p.primary_photo.href : null;
+
+  const typeRaw = (desc.type || '').toLowerCase();
+  const isCommercial = ['multi_family','land','farm'].includes(typeRaw);
+  const type = isCommercial ? 'commercial' : 'residential';
+
+  let status = 'active';
+  if (flags.is_pending)    status = 'pending';
+  if (flags.is_contingent) status = 'pending';
+
+  const fullAddr = [addr.line, addr.city, addr.state_code, addr.postal_code].filter(Boolean).join(', ');
+
   return {
-    id:          p.mlsId || String(Math.random()),
-    mlsId:       p.mlsId || '—',
+    id:          p.property_id || String(Math.random()),
+    mlsId:       p.property_id || '—',
     type,
     status,
-    subType:     prop.subType || prop.type || 'Residential',
-    rawPrice:    p.listPrice || 0,
-    price:       p.listPrice ? '$' + Number(p.listPrice).toLocaleString() : 'Price N/A',
-    title:       prop.style || prop.subType || 'Property',
+    subType:     desc.type || 'Residential',
+    rawPrice:    p.list_price || 0,
+    price:       p.list_price ? '$' + Number(p.list_price).toLocaleString() : 'Price N/A',
+    title:       desc.type ? desc.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Property',
     address:     fullAddr || 'Address unavailable',
-    beds:        prop.bedrooms || '—',
-    baths:       prop.bathsFull || '—',
-    sqft:        prop.area ? Number(prop.area).toLocaleString() : '—',
-    year:        prop.yearBuilt || '—',
-    lotSize:     prop.lotSize ? prop.lotSize + ' acres' : '—',
-    desc:        p.remarks || 'No description provided.',
-    img:         photos.length ? photos[0] : null,
-    lat:         geo.lat || null,
-    lng:         geo.lng || null,
-    agentName:   agent.firstName ? agent.firstName + ' ' + (agent.lastName || '') : null,
+    beds:        desc.beds || '—',
+    baths:       desc.baths_full || desc.baths || '—',
+    sqft:        desc.sqft ? Number(desc.sqft).toLocaleString() : '—',
+    year:        desc.year_built || '—',
+    lotSize:     desc.lot_sqft ? Number(desc.lot_sqft).toLocaleString() + ' sqft' : '—',
+    desc:        'Listed at $' + (p.list_price ? Number(p.list_price).toLocaleString() : 'N/A') + ' · ' + fullAddr,
+    img:         photo,
+    lat:         coord.lat || null,
+    lng:         coord.lon || null,
+    agentName:   agent.agent_name || null,
     commentCount: 0,
   };
 }
 
-async function fetchFromSimplyRETS(queryParams) {
-  const url = new URL('https://api.simplyrets.com/properties');
-  for (const [k, v] of Object.entries(queryParams)) {
-    if (ALLOWED_PARAMS.includes(k)) url.searchParams.set(k, v);
-  }
-  if (!url.searchParams.has('status')) url.searchParams.set('status', 'Active');
-  if (!url.searchParams.has('limit'))  url.searchParams.set('limit', '25');
-
-  const creds = Buffer.from(`${process.env.SR_USER}:${process.env.SR_PASS}`).toString('base64');
-  const resp = await fetch(url.toString(), {
-    headers: { 'Authorization': `Basic ${creds}`, 'Accept': 'application/json' },
+async function fetchFromRapidAPI(body) {
+  const resp = await fetch('https://realty-in-us.p.rapidapi.com/properties/v3/list', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+      'X-RapidAPI-Host': 'realty-in-us.p.rapidapi.com',
+    },
+    body: JSON.stringify(body),
   });
-  if (!resp.ok) throw new Error(`SimplyRETS ${resp.status}`);
-  return resp.json();
+  if (!resp.ok) throw new Error(`RapidAPI ${resp.status}`);
+  const json = await resp.json();
+  return (json.data && json.data.home_search && json.data.home_search.results) || [];
 }
 
 async function getListingsWithCache(cacheKey, queryParams) {
@@ -66,13 +72,27 @@ async function getListingsWithCache(cacheKey, queryParams) {
   );
   if (cached.rows.length) {
     const age = Date.now() - new Date(cached.rows[0].fetched_at).getTime();
-    if (age < CACHE_TTL_MS) {
-      return cached.rows[0].payload;
-    }
+    if (age < CACHE_TTL_MS) return cached.rows[0].payload;
   }
 
-  // Fetch fresh
-  const raw = await fetchFromSimplyRETS(queryParams);
+  // Build request body from query params
+  const body = {
+    limit:   parseInt(queryParams.limit, 10) || 25,
+    offset:  0,
+    status:  ['for_sale'],
+    sort:    { direction: 'desc', field: 'list_date' },
+  };
+  if (queryParams.city)       body.city       = queryParams.city;
+  if (queryParams.state_code) body.state_code = queryParams.state_code;
+  if (queryParams.postal_code) body.postal_code = queryParams.postal_code;
+  if (queryParams.minprice || queryParams.maxprice) {
+    body.list_price = {};
+    if (queryParams.minprice) body.list_price.min = parseInt(queryParams.minprice, 10);
+    if (queryParams.maxprice) body.list_price.max = parseInt(queryParams.maxprice, 10);
+  }
+  if (queryParams.type) body.type = [queryParams.type];
+
+  const raw = await fetchFromRapidAPI(body);
   const mapped = raw.map(mapProperty);
 
   // Upsert cache
@@ -104,13 +124,12 @@ async function attachCommentCounts(listings) {
 // GET /api/v1/listings
 router.get('/', async (req, res) => {
   try {
-    // Build a deterministic cache key from whitelisted query params
+    const ALLOWED = ['limit','city','state_code','postal_code','minprice','maxprice','type'];
     const filtered = {};
-    for (const k of ALLOWED_PARAMS) {
+    for (const k of ALLOWED) {
       if (req.query[k]) filtered[k] = req.query[k];
     }
     const cacheKey = 'listings:' + new URLSearchParams(filtered).toString();
-
     let listings = await getListingsWithCache(cacheKey, filtered);
     listings = await attachCommentCounts(listings);
     res.json(listings);
@@ -137,8 +156,8 @@ router.get('/:mlsId', async (req, res) => {
       }
     }
 
-    // Fetch from main listings cache or fresh
-    const listingsCacheKey = 'listings:status=Active&limit=25';
+    // Search main cache
+    const listingsCacheKey = 'listings:';
     let listings;
     try {
       listings = await getListingsWithCache(listingsCacheKey, {});
@@ -149,7 +168,6 @@ router.get('/:mlsId', async (req, res) => {
     const listing = listings.find(l => String(l.mlsId) === String(req.params.mlsId));
     if (!listing) return res.status(404).json({ error: 'Listing not found' });
 
-    // Cache individual listing
     await pool.query(
       `INSERT INTO listings_cache (cache_key, payload, fetched_at)
        VALUES ($1, $2, NOW())

@@ -407,7 +407,7 @@ function initMap(){
 // ── LOAD ──
 function loadListings(cb){
   showSbLoading();
-  fetch(API+'/listings?limit=25&status=Active')
+  fetch(API+'/listings?limit=25')
   .then(function(r){if(!r.ok)throw new Error();return r.json();})
   .then(function(data){
     listings=data;
@@ -443,7 +443,7 @@ function doSearch(){
     var d=0.22,bounds=L.latLngBounds([lat-d,lng-d],[lat+d,lng+d]);
     drawBoundary(bounds);
     showToast('Loading listings…',true);
-    fetch(API+'/listings?limit=25&status=Active')
+    fetch(API+'/listings?limit=25')
     .then(function(r){if(!r.ok)throw new Error();return r.json();})
     .then(function(data){
       listings=data;
