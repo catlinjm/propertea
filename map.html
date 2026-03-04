@@ -434,11 +434,14 @@ function doSearch(){
   document.getElementById('tbSugg').classList.remove('show');
   showToast('Finding "'+city+'"…',true);
   closePanel();
-  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&polygon_geojson=1&q='+encodeURIComponent(city),{headers:{'User-Agent':'ProperTea/1.0'}})
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=10&polygon_geojson=1&q='+encodeURIComponent(city),{headers:{'User-Agent':'ProperTea/1.0'}})
   .then(function(r){if(!r.ok)throw new Error();return r.json();})
   .then(function(data){
     if(!data.length){showToast('City not found',false);setTimeout(hideToast,3500);return;}
-    var place=data[0];
+    // Prefer actual city/town over county/administrative
+    var place=data.find(function(p){return p.type==='city'||p.type==='town';})||
+              data.find(function(p){return p.class==='place';})||
+              data[0];
     var lat=parseFloat(place.lat),lng=parseFloat(place.lon);
     var name=place.display_name.split(',')[0]||city;
     drawBoundary(place.geojson);
