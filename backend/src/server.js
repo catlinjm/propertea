@@ -15,12 +15,13 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // CORS
-const allowedOrigins = (process.env.CORS_ORIGINS || '').split(' ').filter(Boolean);
+const allowedOrigins = (process.env.CORS_ORIGINS || '').split(/\s+/).filter(Boolean);
 app.use(cors({
   origin: function (origin, cb) {
     // Allow requests with no origin (file://, Postman, curl)
     if (!origin) return cb(null, true);
-    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return cb(null, true);
+    // '*' in the list means allow all origins
+    if (allowedOrigins.length === 0 || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error('CORS: origin not allowed'));
   },
   methods: ['GET','POST','DELETE','OPTIONS'],
