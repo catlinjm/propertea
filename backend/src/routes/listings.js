@@ -5,6 +5,7 @@ const { pool } = require('../db');
 const router = express.Router();
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const CACHE_VERSION = 'v2'; // bump to bust cache
 
 function mapProperty(p) {
   const loc   = p.location || {};
@@ -61,12 +62,13 @@ async function geocode(address) {
 }
 
 async function geocodeMissing(listings) {
-  // Geocode up to 10 listings that are missing coordinates (rate limit friendly)
+  // Geocode sequentially with delay to respect Nominatim's 1 req/sec limit
   const missing = listings.filter(l => !l.lat || !l.lng).slice(0, 10);
-  await Promise.all(missing.map(async l => {
+  for (const l of missing) {
     const coords = await geocode(l.address);
     if (coords) { l.lat = coords.lat; l.lng = coords.lng; }
-  }));
+    await new Promise(r => setTimeout(r, 1100)); // 1.1s between requests
+  }
   return listings;
 }
 
@@ -159,7 +161,7 @@ router.get('/', async (req, res) => {
     const effectiveState = filtered.state_code || 'CA';
     if (!filtered.city)       filtered.city       = effectiveCity;
     if (!filtered.state_code) filtered.state_code = effectiveState;
-    const cacheKey = 'listings:' + new URLSearchParams(filtered).toString();
+    const cacheKey = CACHE_VERSION + ':listings:' + new URLSearchParams(filtered).toString();
     let listings = await getListingsWithCache(cacheKey, filtered);
     listings = await attachCommentCounts(listings);
     res.json(listings);
