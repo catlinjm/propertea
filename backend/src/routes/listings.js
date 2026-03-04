@@ -75,14 +75,17 @@ async function getListingsWithCache(cacheKey, queryParams) {
     if (age < CACHE_TTL_MS) return cached.rows[0].payload;
   }
 
+  const city       = queryParams.city       || 'Bakersfield';
+  const state_code = queryParams.state_code || 'CA';
+
   // Build request body from query params
   const body = {
     limit:   parseInt(queryParams.limit, 10) || 25,
     offset:  0,
     status:  ['for_sale'],
     sort:    { direction: 'desc', field: 'list_date' },
-    city:       queryParams.city       || 'Bakersfield',
-    state_code: queryParams.state_code || 'CA',
+    city,
+    state_code,
   };
   if (queryParams.postal_code) body.postal_code = queryParams.postal_code;
   if (queryParams.minprice || queryParams.maxprice) {
@@ -129,6 +132,11 @@ router.get('/', async (req, res) => {
     for (const k of ALLOWED) {
       if (req.query[k]) filtered[k] = req.query[k];
     }
+    // Include effective defaults in cache key so changing defaults busts the cache
+    const effectiveCity  = filtered.city       || 'Bakersfield';
+    const effectiveState = filtered.state_code || 'CA';
+    if (!filtered.city)       filtered.city       = effectiveCity;
+    if (!filtered.state_code) filtered.state_code = effectiveState;
     const cacheKey = 'listings:' + new URLSearchParams(filtered).toString();
     let listings = await getListingsWithCache(cacheKey, filtered);
     listings = await attachCommentCounts(listings);
