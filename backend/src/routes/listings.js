@@ -5,7 +5,7 @@ const { pool } = require('../db');
 const router = express.Router();
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const CACHE_VERSION = 'v3'; // bump to bust cache
+const CACHE_VERSION = 'v4'; // bump to bust cache
 
 function mapProperty(p) {
   const loc   = p.location || {};
@@ -14,7 +14,9 @@ function mapProperty(p) {
   const desc  = p.description || {};
   const flags = p.flags || {};
   const agent = (p.source && p.source.agents && p.source.agents[0]) || {};
-  const photo = p.primary_photo ? p.primary_photo.href : null;
+  const photoRaw = p.primary_photo ? p.primary_photo.href : null;
+  // Upgrade thumbnail (ending in 's.jpg') to large image ('od.jpg')
+  const photo = photoRaw ? photoRaw.replace(/-s\.jpg$/i, '-od.jpg') : null;
 
   const typeRaw = (desc.type || '').toLowerCase();
   const isCommercial = ['multi_family','land','farm'].includes(typeRaw);
