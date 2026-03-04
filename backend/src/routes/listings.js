@@ -49,6 +49,27 @@ function mapProperty(p) {
   };
 }
 
+async function geocode(address) {
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
+    const resp = await fetch(url, { headers: { 'User-Agent': 'ProperTea/1.0' } });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data.length) return null;
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch { return null; }
+}
+
+async function geocodeMissing(listings) {
+  // Geocode up to 10 listings that are missing coordinates (rate limit friendly)
+  const missing = listings.filter(l => !l.lat || !l.lng).slice(0, 10);
+  await Promise.all(missing.map(async l => {
+    const coords = await geocode(l.address);
+    if (coords) { l.lat = coords.lat; l.lng = coords.lng; }
+  }));
+  return listings;
+}
+
 async function fetchFromRapidAPI(body) {
   const resp = await fetch('https://realty-in-us.p.rapidapi.com/properties/v3/list', {
     method: 'POST',
@@ -97,6 +118,7 @@ async function getListingsWithCache(cacheKey, queryParams) {
 
   const raw = await fetchFromRapidAPI(body);
   const mapped = raw.map(mapProperty);
+  await geocodeMissing(mapped);
 
   // Upsert cache
   await pool.query(
