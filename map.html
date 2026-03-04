@@ -434,30 +434,27 @@ function doSearch(){
   document.getElementById('tbSugg').classList.remove('show');
   showToast('Finding "'+city+'"…',true);
   closePanel();
-  fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(city)+'&limit=1&lang=en')
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&polygon_geojson=1&q='+encodeURIComponent(city),{headers:{'User-Agent':'ProperTea/1.0'}})
   .then(function(r){if(!r.ok)throw new Error();return r.json();})
   .then(function(data){
-    if(!data.features||!data.features.length){showToast('City not found',false);setTimeout(hideToast,3500);return;}
-    var f=data.features[0],c=f.geometry.coordinates,lat=c[1],lng=c[0];
-    var name=f.properties.city||f.properties.name||city;
-    var d=0.22,bounds=L.latLngBounds([lat-d,lng-d],[lat+d,lng+d]);
-    drawBoundary(bounds);
+    if(!data.length){showToast('City not found',false);setTimeout(hideToast,3500);return;}
+    var place=data[0];
+    var lat=parseFloat(place.lat),lng=parseFloat(place.lon);
+    var name=place.display_name.split(',')[0]||city;
+    drawBoundary(place.geojson);
+    var bounds=boundaryLayer?boundaryLayer.getBounds():L.latLngBounds([lat-0.22,lng-0.22],[lat+0.22,lng+0.22]);
     showToast('Loading listings…',true);
-    fetch(API+'/listings?limit=25')
+    // Parse city and state from display_name for API call
+    var parts=place.display_name.split(',').map(function(s){return s.trim();});
+    var cityName=parts[0]||city;
+    var stateCode='';
+    fetch(API+'/listings?limit=25&city='+encodeURIComponent(cityName)+(stateCode?'&state_code='+stateCode:''))
     .then(function(r){if(!r.ok)throw new Error();return r.json();})
     .then(function(data){
       listings=data;
       clearMarkers();addMarkers();renderSb();
-      var hg=listings.filter(function(l){return l.lat&&l.lng;}).length;
-      var isSandbox=hg>0&&listings[0]&&listings[0].lat&&Math.abs(listings[0].lat-lat)>3;
-      if(isSandbox){
-        var mc=listings.filter(function(l){return l.lat&&l.lng;}).map(function(l){return[l.lat,l.lng];});
-        if(mc.length)map.fitBounds(mc,{padding:[50,50]});
-        showToast('📍 '+name+' boundary set · Sandbox data shown',false);setTimeout(hideToast,5000);
-      } else {
-        map.fitBounds(bounds,{padding:[30,30]});
-        showToast('✓ '+listings.length+' listings near '+name,false);setTimeout(hideToast,3000);
-      }
+      map.fitBounds(bounds,{padding:[30,30]});
+      showToast('✓ '+listings.length+' listings in '+name,false);setTimeout(hideToast,3000);
     })
     .catch(function(){
       clearMarkers();addMarkers();renderSb();
@@ -468,9 +465,12 @@ function doSearch(){
   .catch(function(){showToast('Geocoding unavailable — try again',false);setTimeout(hideToast,4000);});
 }
 
-function drawBoundary(b){
+function drawBoundary(geojson){
   if(boundaryLayer)map.removeLayer(boundaryLayer);
-  boundaryLayer=L.rectangle(b,{fillColor:'#8dc63f',fillOpacity:0.05,color:'#8dc63f',weight:2,dashArray:'8,5'}).addTo(map);
+  if(!geojson){return;}
+  boundaryLayer=L.geoJSON(geojson,{
+    style:{fillColor:'#8dc63f',fillOpacity:0.05,color:'#8dc63f',weight:2,dashArray:'8,5'}
+  }).addTo(map);
 }
 
 // ── MARKERS ──
