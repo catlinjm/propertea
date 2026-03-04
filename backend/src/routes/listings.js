@@ -75,7 +75,7 @@ async function getListingsWithCache(cacheKey, queryParams) {
     if (age < CACHE_TTL_MS) return cached.rows[0].payload;
   }
 
-  const city       = queryParams.city       || 'Bakersfield';
+  const city       = queryParams.city       || 'San Luis Obispo';
   const state_code = queryParams.state_code || 'CA';
 
   // Build request body from query params
@@ -133,7 +133,7 @@ router.get('/', async (req, res) => {
       if (req.query[k]) filtered[k] = req.query[k];
     }
     // Include effective defaults in cache key so changing defaults busts the cache
-    const effectiveCity  = filtered.city       || 'Bakersfield';
+    const effectiveCity  = filtered.city       || 'San Luis Obispo';
     const effectiveState = filtered.state_code || 'CA';
     if (!filtered.city)       filtered.city       = effectiveCity;
     if (!filtered.state_code) filtered.state_code = effectiveState;
