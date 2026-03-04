@@ -434,7 +434,7 @@ function doSearch(){
   document.getElementById('tbSugg').classList.remove('show');
   showToast('Finding "'+city+'"…',true);
   closePanel();
-  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=10&polygon_geojson=1&q='+encodeURIComponent(city),{headers:{'User-Agent':'ProperTea/1.0'}})
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=10&polygon_geojson=1&addressdetails=1&q='+encodeURIComponent(city),{headers:{'User-Agent':'ProperTea/1.0'}})
   .then(function(r){if(!r.ok)throw new Error();return r.json();})
   .then(function(data){
     if(!data.length){showToast('City not found',false);setTimeout(hideToast,3500);return;}
@@ -447,11 +447,10 @@ function doSearch(){
     drawBoundary(place.geojson);
     var bounds=boundaryLayer?boundaryLayer.getBounds():L.latLngBounds([lat-0.22,lng-0.22],[lat+0.22,lng+0.22]);
     showToast('Loading listings…',true);
-    // Parse city and state from display_name for API call
-    var parts=place.display_name.split(',').map(function(s){return s.trim();});
-    var cityName=parts[0]||city;
-    var stateCode='';
-    fetch(API+'/listings?limit=25&city='+encodeURIComponent(cityName)+(stateCode?'&state_code='+stateCode:''))
+    var addr=place.address||{};
+    var cityName=addr.city||addr.town||addr.village||place.display_name.split(',')[0]||city;
+    var stateCode=addr['ISO3166-2-lvl4']?addr['ISO3166-2-lvl4'].replace('US-',''):'';
+    fetch(API+'/listings?limit=25&city='+encodeURIComponent(cityName)+(stateCode?'&state_code='+encodeURIComponent(stateCode):''))
     .then(function(r){if(!r.ok)throw new Error();return r.json();})
     .then(function(data){
       listings=data;
