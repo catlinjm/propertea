@@ -81,9 +81,9 @@ async function getListingsWithCache(cacheKey, queryParams) {
     offset:  0,
     status:  ['for_sale'],
     sort:    { direction: 'desc', field: 'list_date' },
+    city:       queryParams.city       || 'Houston',
+    state_code: queryParams.state_code || 'TX',
   };
-  if (queryParams.city)       body.city       = queryParams.city;
-  if (queryParams.state_code) body.state_code = queryParams.state_code;
   if (queryParams.postal_code) body.postal_code = queryParams.postal_code;
   if (queryParams.minprice || queryParams.maxprice) {
     body.list_price = {};
