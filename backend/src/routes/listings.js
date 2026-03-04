@@ -106,7 +106,7 @@ async function getListingsWithCache(cacheKey, queryParams) {
 
   // Build request body from query params
   const body = {
-    limit:   parseInt(queryParams.limit, 10) || 25,
+    limit:   parseInt(queryParams.limit, 10) || 100,
     offset:  0,
     status:  ['for_sale'],
     sort:    { direction: 'desc', field: 'list_date' },

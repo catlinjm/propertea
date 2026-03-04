@@ -407,7 +407,7 @@ function initMap(){
 // ── LOAD ──
 function loadListings(cb){
   showSbLoading();
-  fetch(API+'/listings?limit=25')
+  fetch(API+'/listings?limit=100')
   .then(function(r){if(!r.ok)throw new Error();return r.json();})
   .then(function(data){
     listings=data;
@@ -450,7 +450,7 @@ function doSearch(){
     var addr=place.address||{};
     var cityName=addr.city||addr.town||addr.village||place.display_name.split(',')[0]||city;
     var stateCode=addr['ISO3166-2-lvl4']?addr['ISO3166-2-lvl4'].replace('US-',''):'';
-    fetch(API+'/listings?limit=25&city='+encodeURIComponent(cityName)+(stateCode?'&state_code='+encodeURIComponent(stateCode):''))
+    fetch(API+'/listings?limit=100&city='+encodeURIComponent(cityName)+(stateCode?'&state_code='+encodeURIComponent(stateCode):''))
     .then(function(r){if(!r.ok)throw new Error();return r.json();})
     .then(function(data){
       listings=data;
