@@ -429,7 +429,7 @@ function finishLoad(cb){
 
 // ── CITY SEARCH ──
 function doSearch(){
-  var city=document.getElementById('cityInput').value.trim();
+  var city=document.getElementById('cityInput').value.trim().replace(/\s+/g,' ').replace(/(\w)\s+([A-Z]{2})$/i,'$1, $2');
   if(!city)return;
   document.getElementById('tbSugg').classList.remove('show');
   showToast('Finding "'+city+'"…',true);
