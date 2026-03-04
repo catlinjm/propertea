@@ -107,6 +107,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;ali
 .card-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s}
 .feat-card:hover .card-img img{transform:scale(1.05)}
 .card-img .no-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;opacity:0.25}
+.ci-slide{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;position:absolute;inset:0}
+.cbtn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.45);color:#fff;border:none;cursor:pointer;width:26px;height:26px;border-radius:50%;font-size:18px;line-height:1;z-index:3;opacity:0;transition:opacity 0.2s;display:flex;align-items:center;justify-content:center;padding:0}
+.card-img:hover .cbtn{opacity:1}.cprev{left:7px}.cnext{right:7px}
+.cdots{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:3}
+.cdot{display:inline-block;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.45);transition:background 0.2s}.cdot.on{background:#fff}
 .card-type{position:absolute;top:12px;left:12px;padding:3px 10px;border-radius:10px;font-size:0.6rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase}
 .card-type.residential{background:var(--forest);color:var(--white)}
 .card-type.commercial{background:var(--brass);color:var(--white)}
@@ -271,11 +276,29 @@ function renderFeatured(){
   var sorted=listings.slice().sort(function(a,b){return(b.commentCount||0)-(a.commentCount||0);}).slice(0,6);
   sorted.forEach(function(l){
     var card=document.createElement('a');card.className='feat-card';card.href='map.html?id='+encodeURIComponent(l.id);
-    var imgHtml=l.img?'<img src="'+esc(l.img)+'" loading="lazy" alt="">':'<div class="no-img">🏡</div>';
+    var photos=l.photos&&l.photos.length?l.photos:(l.img?[l.img]:[]);
+    var imgHtml;
+    if(photos.length){
+      imgHtml=photos.map(function(p,i){return '<img src="'+esc(p)+'" loading="lazy" alt="" class="ci-slide"'+(i>0?' style="display:none"':'')+'>'; }).join('');
+      if(photos.length>1){
+        imgHtml+='<button class="cbtn cprev" onclick="event.preventDefault();event.stopPropagation();cslide(this,-1)">&#8249;</button>';
+        imgHtml+='<button class="cbtn cnext" onclick="event.preventDefault();event.stopPropagation();cslide(this,1)">&#8250;</button>';
+        imgHtml+='<div class="cdots">'+photos.map(function(_,i){return '<i class="cdot'+(i===0?' on':'')+'"></i>';}).join('')+'</div>';
+      }
+    } else { imgHtml='<div class="no-img">🏡</div>'; }
     var cc=l.commentCount||0;
-    card.innerHTML='<div class="card-img">'+imgHtml+'<span class="card-type '+l.type+'">'+l.type+'</span><span class="card-status-pill '+l.status+'">'+l.status+'</span>'+(cc>0?'<div class="hot-badge">🔥 '+cc+' comment'+(cc!==1?'s':'')+'</div>':'')+'</div><div class="card-body"><div class="card-price">'+l.price+'</div><div class="card-addr">'+esc(l.address)+'</div><div class="card-meta">'+(l.beds!=='—'?'<span>🛏 '+l.beds+'</span>':'')+(l.baths!=='—'?'<span>🛁 '+l.baths+'</span>':'')+'<span>📐 '+l.sqft+'</span></div></div>';
+    card.innerHTML='<div class="card-img" style="position:relative">'+imgHtml+'<span class="card-type '+l.type+'">'+l.type+'</span><span class="card-status-pill '+l.status+'">'+l.status+'</span>'+(cc>0?'<div class="hot-badge">🔥 '+cc+' comment'+(cc!==1?'s':'')+'</div>':'')+'</div><div class="card-body"><div class="card-price">'+l.price+'</div><div class="card-addr">'+esc(l.address)+'</div><div class="card-meta">'+(l.beds!=='—'?'<span>🛏 '+l.beds+'</span>':'')+(l.baths!=='—'?'<span>🛁 '+l.baths+'</span>':'')+'<span>📐 '+l.sqft+'</span></div></div>';
     grid.appendChild(card);
   });
+}
+function cslide(btn,dir){
+  var wrap=btn.closest('.card-img');
+  var slides=wrap.querySelectorAll('.ci-slide');
+  var dots=wrap.querySelectorAll('.cdot');
+  var cur=Array.from(slides).findIndex(function(s){return s.style.display!=='none';});
+  slides[cur].style.display='none';if(dots[cur])dots[cur].classList.remove('on');
+  var nxt=(cur+dir+slides.length)%slides.length;
+  slides[nxt].style.display='block';if(dots[nxt])dots[nxt].classList.add('on');
 }
 
 

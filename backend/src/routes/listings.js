@@ -5,7 +5,7 @@ const { pool } = require('../db');
 const router = express.Router();
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const CACHE_VERSION = 'v4'; // bump to bust cache
+const CACHE_VERSION = 'v5'; // bump to bust cache
 
 function mapProperty(p) {
   const loc   = p.location || {};
@@ -14,9 +14,13 @@ function mapProperty(p) {
   const desc  = p.description || {};
   const flags = p.flags || {};
   const agent = (p.source && p.source.agents && p.source.agents[0]) || {};
+  const upgradeUrl = url => url ? url.replace(/-[sml]\.jpg$/i, '-od.jpg') : null;
   const photoRaw = p.primary_photo ? p.primary_photo.href : null;
-  // Upgrade thumbnail (ending in 's.jpg') to large image ('od.jpg')
-  const photo = photoRaw ? photoRaw.replace(/-s\.jpg$/i, '-od.jpg') : null;
+  const photo = upgradeUrl(photoRaw);
+  // Collect all listing photos, upgraded to high-res
+  const allPhotos = Array.isArray(p.photos)
+    ? p.photos.map(ph => upgradeUrl(ph && ph.href)).filter(Boolean)
+    : (photo ? [photo] : []);
 
   const typeRaw = (desc.type || '').toLowerCase();
   const isCommercial = ['multi_family','land','farm'].includes(typeRaw);
@@ -44,7 +48,8 @@ function mapProperty(p) {
     year:        desc.year_built || '—',
     lotSize:     desc.lot_sqft ? Number(desc.lot_sqft).toLocaleString() + ' sqft' : '—',
     desc:        'Listed at $' + (p.list_price ? Number(p.list_price).toLocaleString() : 'N/A') + ' · ' + fullAddr,
-    img:         photo,
+    img:         allPhotos[0] || photo,
+    photos:      allPhotos,
     lat:         coord.lat || null,
     lng:         coord.lon || null,
     agentName:   agent.agent_name || null,
