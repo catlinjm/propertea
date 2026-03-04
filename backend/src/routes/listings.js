@@ -5,7 +5,7 @@ const { pool } = require('../db');
 const router = express.Router();
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const CACHE_VERSION = 'v2'; // bump to bust cache
+const CACHE_VERSION = 'v3'; // bump to bust cache
 
 function mapProperty(p) {
   const loc   = p.location || {};
@@ -52,23 +52,24 @@ function mapProperty(p) {
 
 async function geocode(address) {
   try {
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
-    const resp = await fetch(url, { headers: { 'User-Agent': 'ProperTea/1.0' } });
+    const url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
+      encodeURIComponent(address) + '.json?limit=1&access_token=' + process.env.MAPBOX_TOKEN;
+    const resp = await fetch(url);
     if (!resp.ok) return null;
     const data = await resp.json();
-    if (!data.length) return null;
-    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    if (!data.features || !data.features.length) return null;
+    const [lng, lat] = data.features[0].center;
+    return { lat, lng };
   } catch { return null; }
 }
 
 async function geocodeMissing(listings) {
-  // Geocode sequentially with delay to respect Nominatim's 1 req/sec limit
-  const missing = listings.filter(l => !l.lat || !l.lng).slice(0, 10);
-  for (const l of missing) {
+  // Mapbox allows parallel requests — geocode all missing at once
+  const missing = listings.filter(l => !l.lat || !l.lng);
+  await Promise.all(missing.map(async l => {
     const coords = await geocode(l.address);
     if (coords) { l.lat = coords.lat; l.lng = coords.lng; }
-    await new Promise(r => setTimeout(r, 1100)); // 1.1s between requests
-  }
+  }));
   return listings;
 }
 
