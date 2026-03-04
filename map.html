@@ -455,7 +455,9 @@ function doSearch(){
     .then(function(data){
       listings=data;
       clearMarkers();addMarkers();renderSb();
-      map.fitBounds(bounds,{padding:[30,30]});
+      var pins=listings.filter(function(l){return l.lat&&l.lng;}).map(function(l){return[l.lat,l.lng];});
+      if(pins.length)map.fitBounds(pins,{padding:[50,50]});
+      else map.fitBounds(bounds,{padding:[30,30]});
       showToast('✓ '+listings.length+' listings in '+name,false);setTimeout(hideToast,3000);
     })
     .catch(function(){
